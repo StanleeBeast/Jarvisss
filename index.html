@@ -108,6 +108,27 @@ body[data-layout="minimal"] .panel{background:rgba(6,16,26,.86)!important;box-sh
 @media(max-width:900px){#view-home .grid,body[data-layout="hologram"] #view-home .grid{grid-template-columns:repeat(2,minmax(0,1fr))}body[data-layout="hologram"] #view-home .grid>.panel:nth-child(3){grid-column:auto;grid-row:auto}}
 @media(max-width:650px){body:after{inset:4px;opacity:.35}header{padding:10px 12px!important}.brand h1{font-size:13px!important}.brand small{font-size:8px!important}.logo{width:40px;height:40px}.status{font-size:8px!important}main{padding:13px 12px 40px!important}.tabs{padding-bottom:10px}.tabs button{font-size:9px!important;padding:9px 10px!important}.hero,#view-home .hero,body[data-layout="command"] #view-home .hero,body[data-layout="hologram"] #view-home .hero,body[data-layout="minimal"] #view-home .hero{grid-template-columns:1fr!important}.hero>.panel{min-height:auto!important}.orbwrap{min-height:155px!important}.orb{width:145px!important;height:145px!important}#view-home .grid,body[data-layout="command"] #view-home .grid,body[data-layout="hologram"] #view-home .grid,body[data-layout="minimal"] #view-home .grid{grid-template-columns:1fr!important}#view-home .grid>.panel:nth-child(3){grid-column:auto!important;grid-row:auto!important}body[data-layout="hologram"] #view-home .hero>.panel:first-child,body[data-layout="hologram"] #view-home .hero>.panel:nth-child(2){order:initial!important}.clock{font-size:clamp(38px,12vw,54px)!important}.panel{padding:15px!important}}
 
+
+/* Original cinematic startup sequence */
+#bootSequence{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 48%,#0b2b3c 0,#04101b 36%,#010409 78%);color:#dffcff;opacity:1;visibility:visible;transition:opacity .8s ease,visibility .8s ease}
+#bootSequence.boot-hidden{opacity:0;visibility:hidden;pointer-events:none}
+#bootSequence:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 3px,#7beeff0c 4px,transparent 5px);pointer-events:none}
+.boot-core{width:min(78vw,370px);aspect-ratio:1;position:relative;display:grid;place-items:center;filter:drop-shadow(0 0 22px color-mix(in srgb,var(--purple),transparent 45%));animation:boot-rise 1.1s ease-out both}
+.boot-ring{position:absolute;inset:8%;border:1px solid color-mix(in srgb,var(--purple),transparent 20%);border-radius:50%;box-shadow:inset 0 0 30px color-mix(in srgb,var(--purple),transparent 90%),0 0 28px color-mix(in srgb,var(--purple),transparent 88%);animation:boot-spin 7s linear infinite}
+.boot-ring:before,.boot-ring:after{content:"";position:absolute;inset:9%;border:1px dashed color-mix(in srgb,var(--purple),transparent 25%);border-radius:50%}
+.boot-ring:after{inset:19%;border-style:solid;transform:rotateX(66deg) rotate(20deg)}
+.boot-ring.r2{inset:20%;border-style:dotted;animation:boot-spin-reverse 9s linear infinite}
+.boot-ring.r3{inset:31%;border-width:2px;border-top-color:transparent;border-bottom-color:transparent;animation:boot-spin 3.5s linear infinite}
+.boot-core:after{content:"";position:absolute;width:29%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#eaffff 0 4%,#80f7ff 12%,color-mix(in srgb,var(--purple),#31d9ff 30%) 36%,transparent 72%);box-shadow:0 0 32px var(--purple),0 0 75px color-mix(in srgb,var(--purple),transparent 35%);animation:boot-pulse 1.6s ease-in-out infinite alternate}
+.boot-content{position:absolute;bottom:-70px;text-align:center;width:100%;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.25em;text-transform:uppercase}
+.boot-kicker{font-size:9px;color:#82c9d7;letter-spacing:.35em}
+.boot-title{font-size:clamp(19px,5vw,26px);margin:9px 0 6px;font-weight:300;text-shadow:0 0 20px color-mix(in srgb,var(--purple),transparent 35%)}
+.boot-status{font-size:9px;color:#9cebf2;letter-spacing:.17em;min-height:14px}
+.boot-track{height:2px;background:#14303b;margin:16px auto 0;max-width:220px;overflow:hidden}
+.boot-track span{display:block;height:100%;width:0;background:var(--purple);box-shadow:0 0 12px var(--purple);animation:boot-progress 3.2s .2s ease-out forwards}
+.boot-skip{position:absolute;bottom:calc(22px + env(safe-area-inset-bottom));right:18px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;background:#06131d;border-color:#326371;color:#bceef3;padding:9px 12px}
+@keyframes boot-spin{to{transform:rotate(360deg)}}@keyframes boot-spin-reverse{to{transform:rotate(-360deg)}}@keyframes boot-pulse{to{transform:scale(1.16);filter:brightness(1.45)}}@keyframes boot-progress{to{width:100%}}@keyframes boot-rise{from{opacity:0;transform:scale(.78) translateY(18px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@media(prefers-reduced-motion:reduce){#bootSequence{transition:none}.boot-core,.boot-ring,.boot-ring.r2,.boot-ring.r3,.boot-core:after,.boot-track span{animation:none!important}.boot-track span{width:100%}}
 </style>
 </head>
 <body>
@@ -163,6 +184,7 @@ body[data-layout="minimal"] .panel{background:rgba(6,16,26,.86)!important;box-sh
 </section>
 <div class="bottom">J.A.R.V.I.S. · IPAD PWA PROTOTYPE · PERSONALITY BUILD 0.2</div>
 </main>
+<div id="bootSequence" role="status" aria-live="polite" aria-label="JARVIS wird gestartet"><div class="boot-core" aria-hidden="true"><div class="boot-ring"></div><div class="boot-ring r2"></div><div class="boot-ring r3"></div><div class="boot-content"><div class="boot-kicker">Stark Industries · Personal AI</div><div class="boot-title">J.A.R.V.I.S.</div><div class="boot-status" id="bootStatus">INITIALISIERE SYSTEME …</div><div class="boot-track"><span></span></div></div></div><button type="button" class="boot-skip" id="bootSkip">Startsequenz überspringen</button></div>
 <div class="toast" id="toast"></div>
 <div class="overlay" id="overlay"><div class="dialog"><div class="eyebrow">BESTÄTIGUNG ERFORDERLICH</div><h2 id="dlgTitle">Aktion bestätigen</h2><p class="hint" id="dlgText"></p><div class="dialog-actions"><button id="dlgCancel">Abbrechen</button><button id="dlgOk" class="primary">Bestätigen</button></div></div></div>
 <script>
@@ -251,6 +273,19 @@ function renderDesigns(){const box=$('savedDesigns');if(!box)return;box.innerHTM
 function saveCurrentDesign(){const name=$('designName').value.trim();if(!name){toast('Bitte dem Design einen Namen geben.');return}const d={...readDesign(),name,id:Date.now()};const list=getDesigns();list.unshift(d);saveDesigns(list.slice(0,20));localStorage.setItem('jarvis_active_design_v1',JSON.stringify(d));applyDesign(d);renderDesigns();toast('Design gespeichert.')}
 $('designPreset').onchange=()=>{const p=presets[$('designPreset').value];if(p)applyDesign({...p,layout:$('layoutPreset')?.value||p.layout});localStorage.setItem('jarvis_active_design_v1',JSON.stringify(readDesign()))};$('layoutPreset').onchange=()=>{const d=readDesign();applyDesign(d);localStorage.setItem('jarvis_active_design_v1',JSON.stringify(d))};['accentColor','glowIntensity','animationsEnabled'].forEach(id=>$(id)?.addEventListener('input',()=>{const d=readDesign();applyDesign(d);localStorage.setItem('jarvis_active_design_v1',JSON.stringify(d))}));$('saveDesign').onclick=saveCurrentDesign;$('resetDesign').onclick=()=>{applyDesign(presets.cyan);localStorage.setItem('jarvis_active_design_v1',JSON.stringify(presets.cyan));toast('Standarddesign wiederhergestellt.')};
 $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettings').onclick=()=>saveAIEndpoint('settings');syncAIEndpointFields();applyDesign((()=>{try{return JSON.parse(localStorage.getItem('jarvis_active_design_v1')||'null')||presets.cyan}catch{return presets.cyan}})());renderDesigns();loadProfileUI();renderMemories();renderFeedback();renderChat();renderEvents();window.speechSynthesis?.getVoices();
+// Cinematic boot sequence: original CSS animation, no external assets required.
+(function startBootSequence(){
+ const screen=$('bootSequence'),status=$('bootStatus'),skip=$('bootSkip');
+ if(!screen)return;
+ const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+ const messages=['INITIALISIERE SYSTEME …','PRÜFE SCHNITTSTELLEN …','LADE PERSÖNLICHES PROFIL …','ALLE SYSTEME BEREIT'];
+ let timerIds=[];
+ const finish=()=>{timerIds.forEach(clearTimeout);screen.classList.add('boot-hidden');setTimeout(()=>screen.remove(),900)};
+ if(skip)skip.addEventListener('click',finish,{once:true});
+ if(reduced){if(status)status.textContent='SYSTEM BEREIT';setTimeout(finish,350);return}
+ messages.forEach((message,i)=>timerIds.push(setTimeout(()=>{if(status)status.textContent=message},[350,1150,2050,3000][i])));
+ timerIds.push(setTimeout(finish,3900));
+})();
 if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').then(()=>{$('status').textContent='PWA BEREIT'}).catch(()=>{$('status').textContent='SYSTEM BEREIT'});
 </script>
 </body></html>
