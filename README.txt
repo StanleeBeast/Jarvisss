@@ -44,7 +44,7 @@ Erwartete Anfragefelder: `messages`, `profile`, `memories`, `feedback`, `timezon
 Das lokale Profil und der Verlauf verbleiben im Browser, bis du die App-Daten löschst. Wenn du eine KI-URL setzt, werden bei KI-Anfragen die letzten Chatnachrichten, Profil, gespeicherte Erinnerungen, Feedback und Zeitzone an diesen Backend-Anbieter übertragen. Trage nur einen Anbieter ein, dem du diese Daten anvertrauen willst. API-Schlüssel gehören nie in GitHub oder Frontend-JavaScript.
 
 
-## Backend-Proxy mit Cloudflare Workers (bereitgestellt, noch nicht deployed)
+## Backend-Proxy mit Cloudflare Workers (Code vorbereitet, noch nicht deployed)
 Im Ordner `backend/` liegt ein Cloudflare Worker als sichere Vermittlung zwischen der PWA und der OpenAI API. GitHub Pages führt diesen Code nicht aus; der Worker muss separat veröffentlicht werden.
 
 ### Einrichtung
@@ -58,7 +58,14 @@ Im Ordner `backend/` liegt ein Cloudflare Worker als sichere Vermittlung zwische
 ### Sicherheitsdetails und Grenzen
 - OpenAI-Schlüssel bleiben als Cloudflare Worker Secret serverseitig.
 - Ein separates Bearer-Token schützt den persönlichen Endpoint; CORS beschränkt Browser-Ursprünge, ersetzt aber keine Authentifizierung.
-- Anfragegröße, Anzahl der Nachrichten, Textlänge und Antwortlänge sind begrenzt; upstream-Fehler werden ohne vertrauliche Antwortdetails gemeldet.
+- Anfragegröße, Anzahl der Nachrichten, Textlänge und Antwortlänge sind begrenzt; upstream-Fehler werden ohne vertrauliche Antwortdetails gemeldet. Ein robustes, globales Rate-Limit ist noch nicht eingerichtet; Token vertraulich halten und Nutzungs-/Kostenlimits beim Anbieter setzen.
 - Für öffentliche oder mehrere Nutzer braucht es zusätzlich robuste Rate Limits, Nutzerkonten und gegebenenfalls eine Datenbank. Dieser Worker ist für eine private Einzelperson-Instanz gedacht, nicht als offener öffentlicher Dienst.
 - Das Backend speichert keine Gespräche. Profil und Erinnerungen werden für die jeweilige Anfrage vom Browser mitgeschickt.
 - Es wurde hier kein Cloudflare-Account verbunden, kein API-Key eingerichtet und kein Worker deployed. Die Dateien sind vorbereitet; erst nach diesen manuellen Schritten funktioniert die echte Modellanbindung.
+
+
+## Automatisierte Backend-Tests
+
+- Im Ordner `backend/` liegt eine Node.js-Test-Suite für Authentifizierung, CORS, fehlende Secrets, ungültiges JSON und eine simulierte Modellantwort.
+- GitHub Actions führt diese Tests bei Pushes und Pull Requests auf `main` aus: https://github.com/StanleeBeast/Jarvisss/actions
+- Die Tests verwenden nur eine simulierte Modellantwort; sie testen keine echte OpenAI-Verbindung und beweisen nicht, dass der Worker deployed ist.
