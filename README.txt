@@ -44,16 +44,23 @@ Erwartete Anfragefelder: `messages`, `profile`, `memories`, `feedback`, `timezon
 Das lokale Profil und der Verlauf verbleiben im Browser, bis du die App-Daten löschst. Wenn du eine KI-URL setzt, werden bei KI-Anfragen die letzten Chatnachrichten, Profil, gespeicherte Erinnerungen, Feedback und Zeitzone an diesen Backend-Anbieter übertragen. Trage nur einen Anbieter ein, dem du diese Daten anvertrauen willst. API-Schlüssel gehören nie in GitHub oder Frontend-JavaScript.
 
 
-## Backend-Proxy mit Cloudflare Workers (Code vorbereitet, noch nicht deployed)
-Im Ordner `backend/` liegt ein Cloudflare Worker als sichere Vermittlung zwischen der PWA und der OpenAI API. GitHub Pages führt diesen Code nicht aus; der Worker muss separat veröffentlicht werden.
+## Backend-Proxy mit Cloudflare Workers (Code vorbereitet, Deployment benötigt Kontozugang)
 
-### Einrichtung
-1. Ein Cloudflare-Konto öffnen und Node.js/npm auf einem Computer installieren. Das iPad allein ist für die lokale CLI-Einrichtung unpraktisch.
-2. `backend/wrangler.toml` prüfen und im Ordner `backend/` ausführen: `npx wrangler login`, danach `npx wrangler secret put OPENAI_API_KEY` und `npx wrangler secret put JARVIS_ACCESS_TOKEN`.
-3. Für `JARVIS_ACCESS_TOKEN` ein eigenes, langes zufälliges Token verwenden. Es ist NICHT dein OpenAI API-Key. Niemals einen dieser Werte committen oder in öffentlichen Screenshots teilen.
-4. Worker veröffentlichen: `npx wrangler deploy`. Die URL wird von Wrangler ausgegeben.
-5. In JARVIS unter Designstudio/Einstellungen die Worker-URL mit Pfad `/api/chat` sowie dasselbe `JARVIS_ACCESS_TOKEN` eintragen. Das Token wird lokal im Browser gespeichert; nutze diese private App nicht auf gemeinsam verwendeten Geräten.
-6. Wenn du eine eigene Domain verwendest, setze `ALLOWED_ORIGINS` in den Worker-Secrets/Variablen auf genau die erlaubte Website-Origin. Für GitHub Pages ist das `https://stanleebeast.github.io`.
+Im Ordner `backend/` liegt ein Cloudflare Worker als Vermittlung zwischen der PWA und der OpenAI API. GitHub Pages führt diesen Code nicht aus; der Worker wird separat veröffentlicht. Eine manuell auslösbare GitHub-Actions-Bereitstellung ist vorbereitet.
+
+### Einmalige Einrichtung (auch vom iPad aus möglich)
+1. Du brauchst ein Cloudflare-Konto sowie einen OpenAI API-Schlüssel. Eine ChatGPT-Mitgliedschaft enthält kein API-Guthaben; API-Nutzung kann zusätzliche Kosten verursachen. Prüfe Abrechnung und Nutzungsgrenzen, bevor du Anfragen aktivierst.
+2. Erstelle in Cloudflare einen API-Token, der Worker bereitstellen und Worker-Secrets verwalten darf, und notiere die Cloudflare Account ID.
+3. Öffne im GitHub-Repository `Settings → Secrets and variables → Actions → New repository secret` und füge diese vier Repository-Secrets hinzu:
+   - `CLOUDFLARE_API_TOKEN` — Cloudflare-API-Token
+   - `CLOUDFLARE_ACCOUNT_ID` — Cloudflare Account ID
+   - `OPENAI_API_KEY` — OpenAI API-Schlüssel
+   - `JARVIS_ACCESS_TOKEN` — ein eigenes, langes, zufälliges Zugangstoken, nicht dein OpenAI-Schlüssel
+4. Öffne `Actions → Deploy JARVIS AI worker → Run workflow`. Der Workflow veröffentlicht den Worker und setzt die beiden Worker-Secrets serverseitig.
+5. Nach erfolgreichem Lauf findest du die Worker-URL im Cloudflare-Dashboard. Der Chat-Endpunkt lautet `https://DEIN-WORKER.workers.dev/api/chat`; der Healthcheck lautet `https://DEIN-WORKER.workers.dev/health`.
+6. Trage in JARVIS unter Designstudio/Einstellungen die vollständige URL mit `/api/chat` und dasselbe `JARVIS_ACCESS_TOKEN` ein und führe den Verbindungstest aus. Das Token wird lokal im Browser gespeichert; nutze diese private App nicht auf gemeinsam verwendeten Geräten.
+
+**Sicherheit:** Niemals API-Schlüssel oder Tokens in Chatnachrichten, Dateien, Screenshots oder normalen GitHub-Code posten. Nur in GitHub-Repository-Secrets bzw. Cloudflare-Worker-Secrets speichern. Falls ein Schlüssel versehentlich veröffentlicht wurde, sofort widerrufen und neu erstellen.
 
 ### Sicherheitsdetails und Grenzen
 - OpenAI-Schlüssel bleiben als Cloudflare Worker Secret serverseitig.
