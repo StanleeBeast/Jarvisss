@@ -45,7 +45,7 @@ function safeMessages(value) {
 }
 function profileSummary(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const allowed = ["language", "answerLength", "address", "humor", "voice", "initiative", "rules", "interests", "projects"];
+  const allowed = ["name", "language", "answerLength", "address", "humor", "direct", "voice", "initiative", "rate", "pitch", "volume", "rules", "interests", "projects"];
   const result = {};
   for (const key of allowed) {
     if (value[key] == null) continue;
@@ -58,7 +58,7 @@ function systemPrompt(payload) {
   const memories = Array.isArray(payload.memories)
     ? payload.memories.slice(0, 30).map(m => ({ text: clip(m?.text, 500), kind: clip(m?.kind, 80) }))
     : [];
-  const feedback = Array.isArray(payload.feedback) ? payload.feedback.slice(0, 12).map(v => clip(v, 300)) : [];
+  const feedback = Array.isArray(payload.feedback) ? payload.feedback.slice(0, 12).map(v => clip(typeof v === "string" ? v : v?.text, 300)).filter(Boolean) : [];
   const timezone = clip(payload.timezone, 100) || "Europe/Berlin";
   return [
     "Du bist J.A.R.V.I.S.S.S., ein persönlicher Assistent. Antworte standardmäßig auf Deutsch, klar, warm, souverän und präzise, mit zurückhaltendem trockenem Humor.",
