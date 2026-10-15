@@ -388,6 +388,68 @@ body:after{display:none!important}
 @media(max-width:650px){#nexusOne .n1-layout{display:flex;flex-direction:column;gap:24px;padding:18px 15px 22px}#nexusOne .n1-left{order:1;padding-top:0}#nexusOne .n1-core-stage{order:0;height:205px;width:100%;margin:0 0 4px}#nexusOne .n1-news{order:2;width:100%}#nexusOne .n1-answer{margin-top:16px;padding:14px}#nexusOne .n1-shortcuts{gap:6px}#nexusOne .n1-shortcuts button{flex:1;white-space:nowrap}#nexusOne .n1-news-body{max-height:none}}
 @media(prefers-reduced-motion:reduce){#bootSequence .boot-core,#bootSequence .boot-ring,#bootSequence .boot-ring.r2,#bootSequence .boot-ring.r3,#bootSequence .boot-ring.r4,#bootSequence .boot-crosshair,#bootSequence .boot-grid,#bootSequence .boot-scan{animation:none!important}#bootSequence .boot-track span{width:100%}}
 
+
+/* JARVIS cinematic interaction pass: integrated settings, precise motion, responsive controls */
+.n1-top-actions{display:flex;align-items:center;gap:clamp(12px,2.5vw,28px)}
+.n1-settings-btn{display:flex;align-items:center;gap:9px;padding:10px 14px;border:1px solid rgba(120,224,255,.2);border-radius:12px;background:linear-gradient(135deg,rgba(15,38,55,.75),rgba(9,17,31,.75));color:#cdeefa;font:inherit;font-size:11px;letter-spacing:.04em;cursor:pointer;transition:transform .25s ease,border-color .25s ease,background .25s ease,box-shadow .25s ease}
+.n1-settings-btn:hover{transform:translateY(-2px);border-color:rgba(111,231,255,.7);box-shadow:0 8px 28px rgba(34,173,220,.13)}
+.n1-settings-glyph{font-size:17px;display:inline-block;color:#83eaff;animation:n1-gear-idle 14s linear infinite}
+.n1-settings-overlay{position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;padding:clamp(12px,3vw,32px);background:rgba(1,5,12,.76);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .28s ease,visibility .28s ease}
+.n1-settings-overlay.is-open{opacity:1;visibility:visible;pointer-events:auto}
+.n1-settings-dialog{width:min(980px,100%);max-height:min(88svh,920px);display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(107,223,255,.24);border-radius:24px;background:linear-gradient(145deg,rgba(9,22,37,.98),rgba(4,9,18,.99));box-shadow:0 35px 120px rgba(0,0,0,.65),0 0 65px rgba(36,157,204,.1);transform:translateY(18px) scale(.985);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.n1-settings-overlay.is-open .n1-settings-dialog{transform:translateY(0) scale(1)}
+.n1-settings-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:clamp(18px,3vw,30px);border-bottom:1px solid rgba(133,210,255,.11)}
+.n1-settings-kicker{font-size:9px;letter-spacing:.22em;color:#6be6ff}
+.n1-settings-head h2{margin:9px 0 5px;font-size:clamp(24px,4vw,34px);font-weight:350;letter-spacing:-.04em}
+.n1-settings-head p{margin:0;color:#8da9bb;font-size:12px}
+.n1-settings-close{flex:0 0 40px;width:40px;height:40px;border:1px solid rgba(130,220,255,.2);border-radius:12px;background:rgba(110,200,255,.06);color:#e7faff;font-size:27px;line-height:1;cursor:pointer;transition:transform .2s ease,background .2s ease}
+.n1-settings-close:hover{transform:rotate(90deg);background:rgba(110,200,255,.15)}
+.n1-settings-content{overflow:auto;padding:clamp(12px,2.5vw,26px);overscroll-behavior:contain}
+.n1-settings-content #view-settings{display:block!important;max-width:none!important}
+.n1-settings-content #view-settings[hidden]{display:block!important}
+.n1-settings-content #view-settings>.grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr))!important;gap:14px!important}
+.n1-settings-content #view-settings .panel{border:1px solid rgba(125,204,255,.12)!important;border-radius:16px!important;background:linear-gradient(145deg,rgba(13,29,45,.88),rgba(7,15,26,.9))!important;box-shadow:inset 0 1px rgba(255,255,255,.025)!important;animation:n1-panel-arrive .5s both}
+.n1-settings-content #view-settings .panel:nth-child(2){animation-delay:.05s}
+.n1-settings-content #view-settings .panel:nth-child(3){animation-delay:.1s}
+.n1-settings-content #view-settings .panel:nth-child(4){animation-delay:.15s}
+.n1-settings-content #view-settings input,.n1-settings-content #view-settings select,.n1-settings-content #view-settings button{max-width:100%}
+.n1-settings-content #view-settings label{display:block;margin:12px 0}
+body.n1-settings-open{overflow:hidden}
+.n1-command{transition:transform .25s ease,filter .25s ease}
+.n1-command:focus-within{transform:translateY(-2px);filter:drop-shadow(0 0 18px rgba(77,214,255,.12))}
+.n1-command:after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;pointer-events:none;background:linear-gradient(90deg,transparent,#6cecff,transparent);transform:scaleX(0);transform-origin:center;transition:transform .35s ease}
+.n1-command:focus-within:after{transform:scaleX(1)}
+.n1-answer{position:relative;overflow:hidden;transition:border-color .3s ease,background .3s ease,transform .3s ease}
+.n1-answer:before{content:"";position:absolute;top:0;bottom:0;left:-55%;width:40%;background:linear-gradient(90deg,transparent,rgba(102,231,255,.07),transparent);transform:skewX(-18deg);pointer-events:none}
+.n1-answer.is-thinking:before{animation:n1-answer-sweep 1.35s ease-in-out infinite}
+.n1-answer.is-thinking .n1-answer-dot{animation:n1-blink .6s ease-in-out infinite}
+.n1-answer:not(.is-thinking){animation:n1-answer-arrive .42s ease both}
+.n1-shortcuts button{transition:transform .22s ease,border-color .22s ease,background .22s ease,box-shadow .22s ease}
+.n1-shortcuts button:hover{transform:translateY(-3px);border-color:rgba(107,229,255,.4);box-shadow:0 10px 28px rgba(12,115,158,.1)}
+.n1-shortcuts button span{display:inline-block;transition:transform .2s ease}
+.n1-shortcuts button:hover span{transform:translate(2px,-2px)}
+.n1-core{transition:filter .35s ease,transform .35s ease}
+.n1-core-stage:after{content:"";position:absolute;inset:8%;border:1px solid rgba(110,225,255,.07);border-radius:50%;pointer-events:none;animation:n1-radar 8s linear infinite}
+.n1-core-inner{background:radial-gradient(circle at 36% 29%,#f4ffff 0 2%,#a5f7ff 4%,rgba(47,196,255,.95) 9%,rgba(37,108,213,.5) 22%,rgba(9,28,67,.88) 47%,rgba(7,17,36,.5) 61%,transparent 72%)}
+.n1-core:before{filter:drop-shadow(0 0 5px rgba(85,227,255,.25))}
+#nexusOne.n1-listening .n1-core-stage:after{animation-duration:2.4s;border-color:rgba(101,237,255,.24)}
+#nexusOne.n1-listening .n1-orbit{border-color:rgba(119,241,255,.85)}
+#nexusOne.n1-speaking .n1-core-stage:after{animation-duration:1.8s}
+#n1Refresh.is-refreshing{animation:n1-spin .8s linear infinite}
+.n1-news-head button{transition:transform .25s ease,color .25s ease}
+.n1-news-head button:hover{transform:rotate(35deg);color:#8cf4ff}
+.n1-mic{transition:box-shadow .25s ease,transform .25s ease}
+.n1-listening .n1-mic{box-shadow:0 0 0 5px rgba(93,228,255,.08),0 0 25px rgba(93,228,255,.3);animation:n1-mic-ring 1.1s ease-in-out infinite}
+.n1-settings-btn:active,.n1-iconbtn:active,.n1-shortcuts button:active{transform:scale(.97)}
+@keyframes n1-gear-idle{to{transform:rotate(360deg)}}
+@keyframes n1-panel-arrive{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes n1-answer-sweep{0%{left:-55%}100%{left:120%}}
+@keyframes n1-answer-arrive{from{opacity:.65;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes n1-radar{0%{transform:scale(.84);opacity:.2}50%{opacity:.65}100%{transform:scale(1.12);opacity:.08}}
+@keyframes n1-mic-ring{0%,100%{box-shadow:0 0 0 2px rgba(93,228,255,.06),0 0 15px rgba(93,228,255,.18)}50%{box-shadow:0 0 0 8px rgba(93,228,255,.025),0 0 30px rgba(93,228,255,.42)}}
+@media(max-width:600px){.n1-top-actions{gap:10px}.n1-state{font-size:0}.n1-state i{width:7px;height:7px}.n1-settings-btn{padding:9px 10px;font-size:10px}.n1-settings-glyph{font-size:15px}.n1-settings-dialog{max-height:92svh;border-radius:18px}.n1-settings-head{padding:18px}.n1-settings-content{padding:10px}.n1-settings-content #view-settings>.grid{grid-template-columns:1fr!important}}
+@media(prefers-reduced-motion:reduce){.n1-settings-glyph{animation:none}.n1-settings-dialog,.n1-settings-overlay,.n1-settings-btn,.n1-command,.n1-shortcuts button{transition:none}}
+
 </style>
 </head>
 <body>
@@ -590,7 +652,7 @@ $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettin
 (function mountNexusOne(){
  if(document.getElementById('nexusOne'))return;
  const app=document.createElement('div');app.id='nexusOne';app.innerHTML=`
- <header class="n1-top"><div class="n1-wordmark"><span class="n1-mark">J</span><span>JARVIS</span></div><div class="n1-state"><i></i><span id="n1Status">SYSTEM ONLINE</span></div></header>
+ <header class="n1-top"><div class="n1-wordmark"><span class="n1-mark">J</span><span>JARVIS</span></div><div class="n1-top-actions"><div class="n1-state"><i></i><span id="n1Status">SYSTEM ONLINE</span></div><button class="n1-settings-btn" id="n1Settings" type="button" aria-label="Einstellungen öffnen"><span class="n1-settings-glyph">⚙</span><span>Einstellungen</span></button></div></header>
  <div class="n1-layout">
   <section class="n1-left">
    <div class="n1-kicker">PERSONAL INTELLIGENCE</div>
@@ -605,8 +667,15 @@ $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettin
   <section class="n1-core-stage" aria-label="Animierter JARVIS-Kern"><div class="n1-core"><div class="n1-core-inner"></div><div class="n1-orbit"></div><div class="n1-orbit o2"></div><div class="n1-orbit o3"></div><div class="n1-scan"></div></div><div class="n1-core-label"><span>JARVIS</span> · NEURAL CORE</div></section>
   <section class="n1-news"><div class="n1-news-head"><div><div class="n1-news-title">Was gerade wichtig ist</div><div class="n1-news-sub">Miltitz & Umgebung · Sachsen · Deutschland · Welt</div></div><button class="n1-refresh" id="n1Refresh" aria-label="Nachrichten aktualisieren" title="Aktualisieren">↻</button></div><div class="n1-news-body" id="n1NewsSlot"></div></section>
  </div>
- <footer class="n1-bottom"><span>J.A.R.V.I.S. · PERSONAL SYSTEM</span><span id="n1FooterState">READY TO ASSIST</span></footer><div class="n1-toast" id="n1Toast"></div>`;
+ <footer class="n1-bottom"><span>J.A.R.V.I.S. · PERSONAL SYSTEM</span><span id="n1FooterState">READY TO ASSIST</span></footer><div class="n1-toast" id="n1Toast"></div><div class="n1-settings-overlay" id="n1SettingsOverlay" aria-hidden="true"><section class="n1-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="n1SettingsTitle"><header class="n1-settings-head"><div><div class="n1-settings-kicker">PERSONAL SYSTEM CONTROL</div><h2 id="n1SettingsTitle">Einstellungen</h2><p>Stimme, Design und KI-Verbindung an einem Ort.</p></div><button id="n1SettingsClose" class="n1-settings-close" type="button" aria-label="Einstellungen schließen">×</button></header><div class="n1-settings-content" id="n1SettingsContent"></div></section></div>`;
  document.body.appendChild(app);
+ const settingsView=document.getElementById('view-settings'),settingsOverlay=document.getElementById('n1SettingsOverlay'),settingsContent=document.getElementById('n1SettingsContent');
+ if(settingsView&&settingsContent){settingsContent.appendChild(settingsView);settingsView.hidden=false;settingsView.classList.add('n1-settings-view')}
+ function openSettings(){settingsOverlay.classList.add('is-open');settingsOverlay.setAttribute('aria-hidden','false');document.body.classList.add('n1-settings-open');$('n1SettingsClose').focus()}
+ function closeSettings(){settingsOverlay.classList.remove('is-open');settingsOverlay.setAttribute('aria-hidden','true');document.body.classList.remove('n1-settings-open');$('n1Settings').focus()}
+ document.getElementById('n1Settings').addEventListener('click',openSettings);document.getElementById('n1SettingsClose').addEventListener('click',closeSettings);
+ settingsOverlay.addEventListener('click',e=>{if(e.target===settingsOverlay)closeSettings()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&settingsOverlay.classList.contains('is-open'))closeSettings()});
  const oldNews=document.getElementById('news');if(oldNews)document.getElementById('n1NewsSlot').appendChild(oldNews);
  const $=id=>document.getElementById(id);
  function tick(){const n=new Date(),h=n.getHours();$('n1Clock').textContent=n.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('n1Date').textContent=n.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'}).toUpperCase();$('n1Greeting').textContent=(h<11?'Guten Morgen':h<18?'Guten Tag':'Guten Abend')+'.';}
