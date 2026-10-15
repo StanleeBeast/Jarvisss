@@ -364,6 +364,30 @@ body:after{display:none!important}
 @media(max-width:600px){.n1-top{padding:17px 18px}.n1-layout{display:flex;flex-direction:column;align-items:stretch;gap:26px;padding:28px 16px 22px}.n1-left{display:flex;flex-direction:column;align-items:stretch}.n1-greeting{margin:15px 0 8px;font-size:38px}.n1-clock{font-size:27px}.n1-core-stage{order:-1;height:210px;margin-bottom:16px}.n1-core{width:155px}.n1-orbit.o2{inset:7% -18%}.n1-orbit.o3{inset:18% -26%}.n1-core-label{bottom:-30px}.n1-command{margin-top:28px}.n1-news{border-radius:18px}.n1-news-head{padding:18px 17px 15px}.n1-news-body{padding:6px 17px 14px;max-height:none}.n1-bottom{padding:13px 18px;font-size:8px}.n1-hint{margin-top:9px}}
 @media(prefers-reduced-motion:reduce){#nexusOne *,#nexusOne *:before,#nexusOne *:after{animation:none!important;transition:none!important}}
 
+
+/* JARVIS ONE — cleaner integrated cockpit */
+#nexusOne .n1-layout{grid-template-columns:minmax(280px,.78fr) minmax(260px,.8fr) minmax(300px,1fr);gap:clamp(18px,2.6vw,42px);width:min(1500px,100%);padding-left:clamp(18px,3vw,48px);padding-right:clamp(18px,3vw,48px);align-items:start}
+#nexusOne .n1-left{padding-top:clamp(14px,5vh,52px)}
+#nexusOne .n1-core-stage{align-self:center;margin-top:25px}
+#nexusOne .n1-news{align-self:stretch}
+#nexusOne .n1-shortcuts{display:flex;flex-wrap:wrap;gap:7px;margin:14px 2px 0}
+#nexusOne .n1-shortcuts button{min-height:32px!important;padding:8px 11px!important;border-radius:9px!important;background:rgba(8,23,38,.58)!important;border-color:rgba(111,205,233,.13)!important;color:#8eafc2!important;font-size:9px!important;letter-spacing:.04em!important}
+#nexusOne .n1-shortcuts button span{color:#61e6ff;margin-left:6px}
+#nexusOne .n1-shortcuts button:hover{color:#e5fbff!important;border-color:rgba(85,234,255,.45)!important}
+#nexusOne .n1-answer{margin-top:22px;padding:16px 17px 18px;border:1px solid rgba(113,202,231,.14);border-radius:15px;background:linear-gradient(145deg,rgba(10,27,44,.68),rgba(4,12,24,.72));box-shadow:inset 0 1px rgba(255,255,255,.025);min-height:108px}
+#nexusOne .n1-answer-top{display:flex;align-items:center;gap:8px;font-size:8px;letter-spacing:.18em;color:#76a2b6;margin-bottom:12px}
+#nexusOne .n1-answer-dot{width:5px;height:5px;border-radius:50%;background:#72ffd7;box-shadow:0 0 10px #72ffd7}
+#nexusOne .n1-answer-time{margin-left:auto;color:#49697f;font-variant-numeric:tabular-nums}
+#nexusOne #n1AnswerText{font-size:12px;line-height:1.75;white-space:pre-wrap;color:#c9dce8;overflow-wrap:anywhere}
+#nexusOne .n1-answer.is-thinking #n1AnswerText{color:#79dff4}
+#nexusOne .n1-answer.is-thinking .n1-answer-dot{background:#68eaff;box-shadow:0 0 14px #68eaff;animation:n1-blink .6s infinite}
+#nexusOne .n1-news-sub{line-height:1.6}
+#nexusOne .n1-news-body{max-height:min(66vh,720px)}
+#nexusOne .n1-bottom{max-width:1600px;width:100%;margin:0 auto}
+@media(max-width:1120px){#nexusOne .n1-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}#nexusOne .n1-left{grid-column:1;grid-row:1;padding-top:8px}#nexusOne .n1-core-stage{grid-column:2;grid-row:1;height:330px;margin-top:10px}#nexusOne .n1-news{grid-column:1/-1;grid-row:2}#nexusOne .n1-news-body{max-height:430px}}
+@media(max-width:650px){#nexusOne .n1-layout{display:flex;flex-direction:column;gap:24px;padding:18px 15px 22px}#nexusOne .n1-left{order:1;padding-top:0}#nexusOne .n1-core-stage{order:0;height:205px;width:100%;margin:0 0 4px}#nexusOne .n1-news{order:2;width:100%}#nexusOne .n1-answer{margin-top:16px;padding:14px}#nexusOne .n1-shortcuts{gap:6px}#nexusOne .n1-shortcuts button{flex:1;white-space:nowrap}#nexusOne .n1-news-body{max-height:none}}
+@media(prefers-reduced-motion:reduce){#bootSequence .boot-core,#bootSequence .boot-ring,#bootSequence .boot-ring.r2,#bootSequence .boot-ring.r3,#bootSequence .boot-ring.r4,#bootSequence .boot-crosshair,#bootSequence .boot-grid,#bootSequence .boot-scan{animation:none!important}#bootSequence .boot-track span{width:100%}}
+
 </style>
 </head>
 <body>
@@ -540,7 +564,7 @@ $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettin
  let timerIds=[];
  const finish=()=>{timerIds.forEach(clearTimeout);screen.classList.add('boot-hidden');setTimeout(()=>screen.remove(),900)};
  if(skip)skip.addEventListener('click',finish,{once:true});
- if(reduced){if(status)status.textContent='SYSTEM BEREIT';setTimeout(finish,350);return}
+ if(reduced){if(status)status.textContent='SYSTEM BEREIT';const percent=$('bootPercent');if(percent)percent.textContent='100%';timerIds.push(setTimeout(finish,1800));return}
  messages.forEach((message,i)=>timerIds.push(setTimeout(()=>{if(status)status.textContent=message.status;const init=$('bootInit');if(init)init.textContent=message.init;const percent=$('bootPercent');if(percent)percent.textContent=String([8,31,56,82,100][i]).padStart(2,'0')+'%'},message.at)));
  timerIds.push(setTimeout(finish,5200));
 })();
@@ -574,7 +598,9 @@ $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettin
    <div class="n1-clock" id="n1Clock">--:--</div>
    <div class="n1-date" id="n1Date">SYSTEMZEIT · DEUTSCHLAND</div>
    <div class="n1-command"><input id="n1Input" placeholder="Was kann ich für dich tun?" autocomplete="off" aria-label="JARVIS fragen"><button class="n1-iconbtn" id="n1Send" aria-label="Senden">↗</button><button class="n1-iconbtn n1-mic" id="n1Mic" aria-label="Spracheingabe">◖</button></div>
-   <div class="n1-hint">Enter zum Senden · Mikrofon für Sprache · Deine Nachrichten bleiben direkt hier im Cockpit.</div>
+   <div class="n1-hint">Einfach fragen. JARVIS plant den nächsten Schritt und zeigt dir das Ergebnis direkt hier.</div>
+   <div class="n1-shortcuts" aria-label="Schnellbefehle"><button type="button" data-n1-command="Gib mir mein Morgenbriefing mit Wetter, Terminen und Nachrichten.">Briefing <span>↗</span></button><button type="button" data-n1-command="Wie ist das Wetter heute in Miltitz bei Nebelschütz?">Wetter <span>↗</span></button><button type="button" data-n1-command="Was sollte ich heute zuerst erledigen? Erstelle einen konkreten Plan.">Tagesplan <span>↗</span></button></div>
+   <section class="n1-answer" id="n1Answer" aria-live="polite"><div class="n1-answer-top"><span class="n1-answer-dot"></span><span id="n1AnswerLabel">JARVIS BEREIT</span><span class="n1-answer-time" id="n1AnswerTime">LIVE</span></div><div id="n1AnswerText">Ich bin bereit. Frag mich etwas oder starte ein Briefing.</div></section>
   </section>
   <section class="n1-core-stage" aria-label="Animierter JARVIS-Kern"><div class="n1-core"><div class="n1-core-inner"></div><div class="n1-orbit"></div><div class="n1-orbit o2"></div><div class="n1-orbit o3"></div><div class="n1-scan"></div></div><div class="n1-core-label"><span>JARVIS</span> · NEURAL CORE</div></section>
   <section class="n1-news"><div class="n1-news-head"><div><div class="n1-news-title">Was gerade wichtig ist</div><div class="n1-news-sub">Miltitz & Umgebung · Sachsen · Deutschland · Welt</div></div><button class="n1-refresh" id="n1Refresh" aria-label="Nachrichten aktualisieren" title="Aktualisieren">↻</button></div><div class="n1-news-body" id="n1NewsSlot"></div></section>
@@ -586,8 +612,8 @@ $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettin
  function tick(){const n=new Date(),h=n.getHours();$('n1Clock').textContent=n.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('n1Date').textContent=n.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'}).toUpperCase();$('n1Greeting').textContent=(h<11?'Guten Morgen':h<18?'Guten Tag':'Guten Abend')+'.';}
  tick();setInterval(tick,1000);
  function toast(msg){const t=$('n1Toast');t.textContent=msg;t.style.display='block';clearTimeout(window.n1ToastTimer);window.n1ToastTimer=setTimeout(()=>t.style.display='none',2800)}
- async function send(){const value=$('n1Input').value.trim();if(!value)return;$('n1Input').value='';const status=$('n1Status');status.textContent='DENKE NACH …';$('n1FooterState').textContent='PROCESSING REQUEST';try{document.getElementById('quickCommand').value=value;await document.getElementById('runQuick').click();setTimeout(()=>{status.textContent='SYSTEM ONLINE';$('n1FooterState').textContent='READY TO ASSIST'},1400)}catch(e){status.textContent='SYSTEM ONLINE';toast('Befehl konnte nicht gestartet werden.')} }
- $('n1Send').addEventListener('click',send);$('n1Input').addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+ async function send(override){const value=(typeof override==='string'?override:$('n1Input').value).trim();if(!value)return;$('n1Input').value='';const status=$('n1Status'),answer=$('n1Answer'),answerText=$('n1AnswerText'),label=$('n1AnswerLabel'),time=$('n1AnswerTime');status.textContent='DENKE NACH …';$('n1FooterState').textContent='PROCESSING REQUEST';answer.classList.add('is-thinking');label.textContent='ANFRAGE IN BEARBEITUNG';answerText.textContent='Ich analysiere deine Anfrage und prüfe, welche Schritte möglich sind …';time.textContent='LIVE';try{const reply=await processCommand(value,true);answerText.textContent=reply||'Ich habe keine Antwort erhalten.';label.textContent='JARVIS ANTWORT';time.textContent=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});if(reply)speak(reply)}catch(e){answerText.textContent='Die Anfrage konnte nicht abgeschlossen werden. Prüfe die KI-Verbindung in den Einstellungen.';label.textContent='VERBINDUNG PRÜFEN'}finally{answer.classList.remove('is-thinking');status.textContent='SYSTEM ONLINE';$('n1FooterState').textContent='READY TO ASSIST'}}
+ $('n1Send').addEventListener('click',()=>send());$('n1Input').addEventListener('keydown',e=>{if(e.key==='Enter')send()});app.querySelectorAll('[data-n1-command]').forEach(button=>button.addEventListener('click',()=>send(button.getAttribute('data-n1-command'))));
  $('n1Mic').addEventListener('click',()=>{app.classList.add('n1-listening');document.getElementById('listenBtn').click();toast('Spracheingabe gestartet.');setTimeout(()=>app.classList.remove('n1-listening'),6500)});
  $('n1Refresh').addEventListener('click',()=>{const b=document.getElementById('nrefresh');if(b)b.click();toast('Nachrichten werden aktualisiert …')});
  document.getElementById('stopBtn').addEventListener('click',()=>app.classList.remove('n1-speaking'));
