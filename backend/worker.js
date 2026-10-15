@@ -53,6 +53,41 @@ function profileSummary(value) {
   }
   return result;
 }
+
+function xmlDecode(value) {
+  return String(value || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'");
+}
+function rssItems(xml, limit = 5) {
+  const items = [];
+  const blocks = xml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item>/gi) || [];
+  for (const block of blocks.slice(0, limit)) {
+    const field = (name) => {
+      const m = block.match(new RegExp("<" + name + "(?:\\s[^>]*)?>([\\s\\S]*?)<\\/" + name + ">", "i"));
+      return m ? xmlDecode(m[1].trim()) : "";
+    };
+    const title = field("title"), link = field("link"), published = field("pubDate");
+    const source = field("source") || "Google News";
+    if (title && /^https?:\/\//i.test(link)) items.push({ title, link, published, source });
+  }
+  return items;
+}
+const NEWS_QUERIES = {
+  local: '(Miltitz OR Nebelschütz OR Kamenz OR Bautzen) (Nachrichten OR Gemeinde OR Polizei OR Verkehr OR Baustelle)',
+  saxony: 'Sachsen Nachrichten Politik Gesellschaft',
+  germany: 'Deutschland Politik Gesellschaft Nachrichten',
+  world: 'Welt Nachrichten internationale Politik Wissenschaft'
+};
+async function getNews(section) {
+  const query = NEWS_QUERIES[section];
+  if (!query) return { error: "invalid_news_section" };
+  const rss = "https://news.google.com/rss/search?q=" + encodeURIComponent(query) + "&hl=de&gl=DE&ceid=DE:de";
+  const response = await fetch(rss, { headers: { "Accept": "application/rss+xml, application/xml, text/xml" }, signal: AbortSignal.timeout(12000) });
+  if (!response.ok) throw new Error("news_upstream_" + response.status);
+  return { section, items: rssItems(await response.text(), 5), fetchedAt: new Date().toISOString() };
+}
+
 function systemPrompt(payload) {
   const profile = JSON.stringify(profileSummary(payload.profile));
   const memories = Array.isArray(payload.memories)
@@ -81,6 +116,19 @@ export default {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
       return json({ status: "ok", service: "jarvisss-ai-proxy", configured: Boolean(env.OPENAI_API_KEY && env.JARVIS_ACCESS_TOKEN) }, 200, headers);
+    }
+    if (request.method === "GET" && url.pathname === "/api/news") {
+      if (!env.JARVIS_ACCESS_TOKEN) return json({ error: "backend_not_configured" }, 503, headers);
+      const auth = request.headers.get("Authorization") || "";
+      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+      if (!(await sameSecret(token, env.JARVIS_ACCESS_TOKEN))) return json({ error: "unauthorized" }, 401, headers);
+      try {
+        const result = await getNews(url.searchParams.get("section") || "local");
+        if (result.error) return json(result, 400, headers);
+        return json(result, 200, headers);
+      } catch (error) {
+        return json({ error: "news_source_unavailable" }, 502, headers);
+      }
     }
     if (request.method !== "POST" || (url.pathname !== "/api/chat" && url.pathname !== "/")) {
       return json({ error: "not_found" }, 404, headers);
