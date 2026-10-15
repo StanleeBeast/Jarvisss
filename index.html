@@ -292,6 +292,78 @@ body.no-motion .orb,body.no-motion .orb:before,body.no-motion .orb:after,body.no
 @media(max-width:600px){header{padding:12px 14px!important}.brand h1{font-size:13px!important;letter-spacing:.22em!important}.brand small{font-size:8px!important}.logo{width:40px!important;height:40px!important}.status{padding:7px 9px;font-size:8px!important}main{padding:14px 12px 40px!important}.tabs{overflow:auto;border-radius:13px!important;margin-bottom:14px!important}.tabs button{padding:10px 12px!important;min-height:38px!important}.hero,.grid{grid-template-columns:1fr!important}.panel{padding:17px!important;border-radius:17px!important}.clock{font-size:clamp(40px,12vw,60px)!important}.orbwrap{min-height:220px!important}.orbwrap:before{width:190px;height:190px}.orbwrap:after{width:220px;height:82px}.orb{width:145px!important;height:145px!important}.chatlog{max-height:44vh!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
+
+/* === JARVIS ONE: minimalist cinematic interface === */
+body>header,body>main{display:none!important}
+body{background:#04070d!important;color:#eff7ff!important;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+body:before{opacity:.16!important;background-size:62px 62px!important}
+body:after{display:none!important}
+#nexusOne{position:relative;z-index:2;min-height:100svh;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,rgba(21,71,99,.16),transparent 45%)}
+.n1-top{display:flex;align-items:center;justify-content:space-between;padding:25px clamp(20px,5vw,72px);border-bottom:1px solid rgba(145,211,255,.09)}
+.n1-wordmark{display:flex;align-items:center;gap:12px;font-size:12px;font-weight:650;letter-spacing:.3em;color:#e8f8ff}
+.n1-mark{width:29px;height:29px;border:1px solid rgba(103,229,255,.7);border-radius:50%;display:grid;place-items:center;color:#8af1ff;font-size:12px;box-shadow:0 0 22px rgba(77,210,255,.13)}
+.n1-state{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#7797ab;display:flex;align-items:center;gap:9px}
+.n1-state i{display:block;width:5px;height:5px;border-radius:50%;background:#7bffd9;box-shadow:0 0 12px #7bffd9;animation:n1-blink 2s ease-in-out infinite}
+.n1-layout{width:min(1360px,100%);margin:auto;padding:clamp(24px,5vh,56px) clamp(18px,5vw,72px) 30px;display:grid;grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr);gap:clamp(28px,6vw,100px);align-items:center}
+.n1-left{min-width:0;position:relative;z-index:2}
+.n1-kicker{font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:#6be6ff}
+.n1-greeting{font-size:clamp(34px,5.3vw,66px);font-weight:250;letter-spacing:-.055em;line-height:1.05;margin:22px 0 12px}
+.n1-clock{font-size:clamp(25px,3vw,38px);font-weight:250;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:#91aebf}
+.n1-date{font-size:11px;color:#627f93;letter-spacing:.1em;margin-top:10px}
+.n1-core-stage{height:clamp(260px,37vw,440px);display:grid;place-items:center;position:relative;isolation:isolate}
+.n1-core-stage:before{content:"";position:absolute;width:85%;aspect-ratio:1;max-width:440px;border-radius:50%;background:radial-gradient(circle,rgba(38,172,221,.12),rgba(83,85,220,.04) 38%,transparent 68%);filter:blur(8px);animation:n1-aura 4s ease-in-out infinite}
+.n1-core{position:relative;width:clamp(190px,25vw,285px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;isolation:isolate;filter:drop-shadow(0 0 30px rgba(59,206,255,.17))}
+.n1-core:before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 9%,#64edff 12%,transparent 17% 31%,#a79bff 35%,transparent 42% 62%,#58dcff 68%,transparent 74% 89%,#64edff 94%,transparent 100%);mask:radial-gradient(farthest-side,transparent calc(100% - 1px),#000 calc(100% - .3px));animation:n1-spin 9s linear infinite}
+.n1-core:after{content:"";position:absolute;inset:12%;border:1px solid rgba(112,225,255,.32);border-radius:50%;box-shadow:inset 0 0 32px rgba(73,191,255,.08),0 0 32px rgba(73,191,255,.08);animation:n1-breathe 3s ease-in-out infinite}
+.n1-core-inner{position:absolute;inset:22%;border-radius:50%;background:radial-gradient(circle at 38% 32%,#e8ffff 0,#8cf2ff 3%,rgba(47,177,240,.9) 10%,rgba(40,104,190,.35) 27%,rgba(7,24,54,.8) 57%,transparent 72%);box-shadow:inset 0 0 32px rgba(100,225,255,.25),0 0 60px rgba(52,177,255,.12);animation:n1-core-pulse 3.2s ease-in-out infinite}
+.n1-orbit{position:absolute;inset:-5% 7%;border:1px solid rgba(94,224,255,.55);border-radius:50%;transform:rotate(-32deg) scaleY(.35);animation:n1-spin 7s linear infinite}
+.n1-orbit.o2{inset:8% -8%;border-color:rgba(167,151,255,.55);transform:rotate(55deg) scaleY(.36);animation:n1-spin-reverse 11s linear infinite}
+.n1-orbit.o3{inset:18% -13%;border-style:dashed;border-color:rgba(91,218,255,.25);transform:rotate(72deg) scaleY(.28);animation:n1-spin 15s linear infinite}
+.n1-scan{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none}
+.n1-scan:after{content:"";position:absolute;left:0;right:0;top:-30%;height:42%;background:linear-gradient(180deg,transparent,rgba(89,226,255,.11),transparent);animation:n1-scan 4s ease-in-out infinite}
+.n1-core-label{position:absolute;bottom:-42px;left:0;right:0;text-align:center;font-size:9px;letter-spacing:.34em;color:#8cb5c8;text-transform:uppercase}
+.n1-core-label span{color:#d3f9ff}
+.n1-command{display:flex;gap:10px;align-items:center;margin-top:36px;padding:7px 8px 7px 17px;border:1px solid rgba(130,197,230,.19);border-radius:15px;background:rgba(10,22,37,.78);box-shadow:0 15px 50px rgba(0,0,0,.15);transition:border-color .25s,box-shadow .25s}
+.n1-command:focus-within{border-color:rgba(99,227,255,.55);box-shadow:0 0 0 3px rgba(99,227,255,.05),0 15px 50px rgba(0,0,0,.2)}
+.n1-command input{min-width:0;flex:1;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;padding:12px 0!important;color:#eafaff!important;font-size:13px!important}
+.n1-command input::placeholder{color:#587488}
+.n1-iconbtn{width:43px;height:43px;min-height:43px!important;padding:0!important;border-radius:12px!important;display:grid;place-items:center;font-size:17px!important;background:rgba(48,143,177,.18)!important;border:1px solid rgba(92,222,255,.3)!important;color:#a7f5ff!important;flex:0 0 auto}
+.n1-mic{background:transparent!important;border-color:transparent!important;color:#8daabc!important}
+.n1-hint{font-size:10px;color:#536e81;margin:12px 3px 0;line-height:1.6}
+.n1-news{min-width:0;border:1px solid rgba(121,191,223,.13);border-radius:22px;background:linear-gradient(145deg,rgba(10,25,43,.76),rgba(5,12,25,.72));backdrop-filter:blur(22px);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.18)}
+.n1-news-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 24px 18px;border-bottom:1px solid rgba(130,197,230,.1)}
+.n1-news-title{font-size:10px;text-transform:uppercase;letter-spacing:.22em;color:#d7f7ff}
+.n1-news-sub{font-size:10px;color:#607e93;margin-top:6px}
+.n1-refresh{min-height:32px!important;width:34px;padding:0!important;border-radius:10px!important;background:transparent!important;border-color:rgba(130,197,230,.12)!important;color:#8bb3c7!important;font-size:15px!important}
+.n1-news-body{padding:7px 24px 18px;max-height:min(53vh,570px);overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(96,208,239,.25) transparent}
+#nexusOne #news{display:grid;gap:0!important}
+#nexusOne #news .news-heading{margin-top:13px;padding:7px 0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#67dff6;font-size:9px;letter-spacing:.17em;text-transform:uppercase}
+#nexusOne #news .news-item{padding:13px 0!important;border:0!important;border-bottom:1px solid rgba(130,197,230,.1)!important;border-radius:0!important;background:transparent!important}
+#nexusOne #news .news-item:hover{transform:translateX(3px)!important;background:transparent!important}
+#nexusOne #news .news-item a{display:block;font-size:13px;line-height:1.5;color:#d7eaf5!important;text-decoration:none!important;transition:color .2s}
+#nexusOne #news .news-item a:hover{color:#75eaff!important}
+#nexusOne #news .news-item small{font-size:9px;color:#587b91!important;letter-spacing:.035em;margin-top:7px}
+#nexusOne #news .news-error,#nexusOne #news .news-sources,#nexusOne #news>.item:not(.news-item):not(.news-heading){font-size:10px;color:#7692a5!important;padding:10px 0!important;border:0!important;background:transparent!important}
+#nexusOne #news .news-sources a{color:#6be6ff!important}
+.n1-bottom{display:flex;justify-content:space-between;gap:12px;padding:15px clamp(20px,5vw,72px);border-top:1px solid rgba(145,211,255,.08);color:#4e6d80;font-size:9px;letter-spacing:.13em;text-transform:uppercase}
+.n1-bottom span:last-child{color:#6d94a9}
+.n1-toast{position:fixed;z-index:9998;bottom:22px;left:50%;transform:translateX(-50%);max-width:90vw;padding:12px 18px;border:1px solid rgba(104,229,255,.35);border-radius:12px;background:rgba(5,17,31,.96);color:#dffaff;font-size:12px;box-shadow:0 15px 55px #0008;display:none}
+#nexusOne.n1-speaking .n1-core-inner{animation:n1-core-live .48s ease-in-out infinite alternate}
+#nexusOne.n1-speaking .n1-orbit{animation-duration:1.5s!important}
+#nexusOne.n1-listening .n1-core{filter:drop-shadow(0 0 48px rgba(98,237,255,.5))}
+#nexusOne.n1-listening .n1-core-inner{animation:n1-core-live .35s ease-in-out infinite alternate}
+@keyframes n1-spin{to{transform:rotate(360deg)}}
+@keyframes n1-spin-reverse{to{transform:rotate(-360deg)}}
+@keyframes n1-breathe{0%,100%{opacity:.55;scale:.97}50%{opacity:1;scale:1.04}}
+@keyframes n1-core-pulse{0%,100%{transform:scale(.91);filter:brightness(.85)}50%{transform:scale(1.06);filter:brightness(1.4)}}
+@keyframes n1-core-live{from{transform:scale(.94);filter:brightness(1)}to{transform:scale(1.12);filter:brightness(1.9)}}
+@keyframes n1-aura{0%,100%{opacity:.55;scale:.9}50%{opacity:1;scale:1.12}}
+@keyframes n1-scan{0%{transform:translateY(-80%);opacity:0}20%{opacity:1}80%{opacity:.8}100%{transform:translateY(280%);opacity:0}}
+@keyframes n1-blink{0%,100%{opacity:1}50%{opacity:.3}}
+@media(max-width:900px){.n1-layout{grid-template-columns:1fr;gap:28px;padding-top:26px}.n1-left{display:grid;grid-template-columns:1fr 1fr;align-items:center;column-gap:14px}.n1-left .n1-kicker,.n1-left .n1-greeting,.n1-left .n1-clock,.n1-left .n1-date,.n1-left .n1-command,.n1-left .n1-hint{grid-column:1}.n1-core-stage{grid-column:2;grid-row:1/5;height:250px}.n1-core{width:180px}.n1-orbit.o2{inset:8% -14%}.n1-orbit.o3{inset:18% -22%}.n1-core-label{bottom:-30px}.n1-greeting{font-size:clamp(31px,5vw,48px)}.n1-news-body{max-height:42vh}}
+@media(max-width:600px){.n1-top{padding:17px 18px}.n1-layout{display:flex;flex-direction:column;align-items:stretch;gap:26px;padding:28px 16px 22px}.n1-left{display:flex;flex-direction:column;align-items:stretch}.n1-greeting{margin:15px 0 8px;font-size:38px}.n1-clock{font-size:27px}.n1-core-stage{order:-1;height:210px;margin-bottom:16px}.n1-core{width:155px}.n1-orbit.o2{inset:7% -18%}.n1-orbit.o3{inset:18% -26%}.n1-core-label{bottom:-30px}.n1-command{margin-top:28px}.n1-news{border-radius:18px}.n1-news-head{padding:18px 17px 15px}.n1-news-body{padding:6px 17px 14px;max-height:none}.n1-bottom{padding:13px 18px;font-size:8px}.n1-hint{margin-top:9px}}
+@media(prefers-reduced-motion:reduce){#nexusOne *,#nexusOne *:before,#nexusOne *:after{animation:none!important;transition:none!important}}
+
 </style>
 </head>
 <body>
@@ -487,6 +559,41 @@ $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettin
  }
  resize();addEventListener('resize',resize,{passive:true});draw(0);
  document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(raf)}else if(!reduce){cancelAnimationFrame(raf);raf=requestAnimationFrame(draw)}});
+})();
+
+
+/* JARVIS ONE shell: one command, one animated core, integrated live news. */
+(function mountNexusOne(){
+ if(document.getElementById('nexusOne'))return;
+ const app=document.createElement('div');app.id='nexusOne';app.innerHTML=`
+ <header class="n1-top"><div class="n1-wordmark"><span class="n1-mark">J</span><span>JARVIS</span></div><div class="n1-state"><i></i><span id="n1Status">SYSTEM ONLINE</span></div></header>
+ <div class="n1-layout">
+  <section class="n1-left">
+   <div class="n1-kicker">PERSONAL INTELLIGENCE</div>
+   <div class="n1-greeting" id="n1Greeting">Guten Morgen.</div>
+   <div class="n1-clock" id="n1Clock">--:--</div>
+   <div class="n1-date" id="n1Date">SYSTEMZEIT · DEUTSCHLAND</div>
+   <div class="n1-command"><input id="n1Input" placeholder="Was kann ich für dich tun?" autocomplete="off" aria-label="JARVIS fragen"><button class="n1-iconbtn" id="n1Send" aria-label="Senden">↗</button><button class="n1-iconbtn n1-mic" id="n1Mic" aria-label="Spracheingabe">◖</button></div>
+   <div class="n1-hint">Enter zum Senden · Mikrofon für Sprache · Deine Nachrichten bleiben direkt hier im Cockpit.</div>
+  </section>
+  <section class="n1-core-stage" aria-label="Animierter JARVIS-Kern"><div class="n1-core"><div class="n1-core-inner"></div><div class="n1-orbit"></div><div class="n1-orbit o2"></div><div class="n1-orbit o3"></div><div class="n1-scan"></div></div><div class="n1-core-label"><span>JARVIS</span> · NEURAL CORE</div></section>
+  <section class="n1-news"><div class="n1-news-head"><div><div class="n1-news-title">Was gerade wichtig ist</div><div class="n1-news-sub">Miltitz & Umgebung · Sachsen · Deutschland · Welt</div></div><button class="n1-refresh" id="n1Refresh" aria-label="Nachrichten aktualisieren" title="Aktualisieren">↻</button></div><div class="n1-news-body" id="n1NewsSlot"></div></section>
+ </div>
+ <footer class="n1-bottom"><span>J.A.R.V.I.S. · PERSONAL SYSTEM</span><span id="n1FooterState">READY TO ASSIST</span></footer><div class="n1-toast" id="n1Toast"></div>`;
+ document.body.appendChild(app);
+ const oldNews=document.getElementById('news');if(oldNews)document.getElementById('n1NewsSlot').appendChild(oldNews);
+ const $=id=>document.getElementById(id);
+ function tick(){const n=new Date(),h=n.getHours();$('n1Clock').textContent=n.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});$('n1Date').textContent=n.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'}).toUpperCase();$('n1Greeting').textContent=(h<11?'Guten Morgen':h<18?'Guten Tag':'Guten Abend')+'.';}
+ tick();setInterval(tick,1000);
+ function toast(msg){const t=$('n1Toast');t.textContent=msg;t.style.display='block';clearTimeout(window.n1ToastTimer);window.n1ToastTimer=setTimeout(()=>t.style.display='none',2800)}
+ async function send(){const value=$('n1Input').value.trim();if(!value)return;$('n1Input').value='';const status=$('n1Status');status.textContent='DENKE NACH …';$('n1FooterState').textContent='PROCESSING REQUEST';try{document.getElementById('quickCommand').value=value;await document.getElementById('runQuick').click();setTimeout(()=>{status.textContent='SYSTEM ONLINE';$('n1FooterState').textContent='READY TO ASSIST'},1400)}catch(e){status.textContent='SYSTEM ONLINE';toast('Befehl konnte nicht gestartet werden.')} }
+ $('n1Send').addEventListener('click',send);$('n1Input').addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+ $('n1Mic').addEventListener('click',()=>{app.classList.add('n1-listening');document.getElementById('listenBtn').click();toast('Spracheingabe gestartet.');setTimeout(()=>app.classList.remove('n1-listening'),6500)});
+ $('n1Refresh').addEventListener('click',()=>{const b=document.getElementById('nrefresh');if(b)b.click();toast('Nachrichten werden aktualisiert …')});
+ document.getElementById('stopBtn').addEventListener('click',()=>app.classList.remove('n1-speaking'));
+ const voicePanel=document.getElementById('voicepanel');
+ if(voicePanel){const observer=new MutationObserver(()=>{app.classList.toggle('n1-speaking',voicePanel.classList.contains('talking'));app.classList.toggle('n1-listening',document.getElementById('listenBtn').textContent.includes('höre zu'))});observer.observe(voicePanel,{attributes:true,attributeFilter:['class']});}
+ const news=document.getElementById('news');if(news){new MutationObserver(()=>{const headings=news.querySelectorAll('.news-heading');headings.forEach(h=>{h.textContent=h.textContent.replace(/^📍\s*/,'').replace(/^🏡\s*/,'').replace(/^🇩🇪\s*/,'').replace(/^🌍\s*/,'')})}).observe(news,{childList:true,subtree:true});}
 })();
 
 if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').then(()=>{$('status').textContent='PWA BEREIT'}).catch(()=>{$('status').textContent='SYSTEM BEREIT'});
