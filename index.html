@@ -249,7 +249,7 @@ body[data-layout="minimal"] .panel:before,body[data-layout="minimal"] .panel:aft
 const $=id=>document.getElementById(id), KEY='jarvis_pwa_02';
 const defaults={profile:{name:'Chef',humor:'dry',direct:'direct',initiative:'balanced',rate:.92,pitch:1,volume:1},memories:[],feedback:[],events:[],chat:[]};
 let data=loadData(),pending=null, recognition=null;
-function loadData(){try{return {...structuredClone(defaults),...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch(e){return JSON.parse(JSON.stringify(defaults))}}
+function loadData(){try{const saved=JSON.parse(localStorage.getItem(KEY)||'{}');const merged={...structuredClone(defaults),...saved,profile:{...defaults.profile,...(saved.profile||{})}};if(merged.profile.rate===.88)merged.profile.rate=.92;if(merged.profile.pitch===.8)merged.profile.pitch=1;return merged}catch(e){return JSON.parse(JSON.stringify(defaults))}}
 function saveData(){localStorage.setItem(KEY,JSON.stringify(data))}
 function toast(s){$('toast').textContent=s;$('toast').style.display='block';clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('toast').style.display='none',3200)}
 function nowLocalInput(date=new Date()){const d=new Date(date.getTime()-date.getTimezoneOffset()*60000);return d.toISOString().slice(0,16)}
