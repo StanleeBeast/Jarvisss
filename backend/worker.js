@@ -130,6 +130,45 @@ export default {
         return json({ error: "news_source_unavailable" }, 502, headers);
       }
     }
+    if (request.method === "POST" && url.pathname === "/api/tts") {
+      if (!env.OPENAI_API_KEY || !env.JARVIS_ACCESS_TOKEN) return json({ error: "backend_not_configured" }, 503, headers);
+      const auth = request.headers.get("Authorization") || "";
+      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+      if (!(await sameSecret(token, env.JARVIS_ACCESS_TOKEN))) return json({ error: "unauthorized" }, 401, headers);
+      let payload;
+      try {
+        const raw = await request.text();
+        if (new TextEncoder().encode(raw).length > 12000) return json({ error: "request_too_large" }, 413, headers);
+        payload = JSON.parse(raw);
+      } catch {
+        return json({ error: "invalid_json" }, 400, headers);
+      }
+      const input = clip(payload?.text, 4000).trim();
+      if (!input) return json({ error: "text_required" }, 400, headers);
+      try {
+        const upstream = await fetch("https://api.openai.com/v1/audio/speech", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + env.OPENAI_API_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini-tts",
+            voice: "coral",
+            input,
+            instructions: "Sprich auf Deutsch. Klinge warm, ruhig, natürlich und souverän, wie ein hochwertiger persönlicher KI-Assistent. Nutze natürliche Pausen und klare Aussprache. Nicht übertrieben dramatisch, nicht monoton, nicht übermäßig langsam."
+          }),
+          signal: AbortSignal.timeout(40000)
+        });
+        if (!upstream.ok) return json({ error: upstream.status === 429 ? "tts_rate_limited" : "tts_request_failed", status: upstream.status }, 502, headers);
+        const audioHeaders = new Headers(headers);
+        audioHeaders.set("Content-Type", upstream.headers.get("Content-Type") || "audio/mpeg");
+        audioHeaders.set("Cache-Control", "no-store");
+        return new Response(upstream.body, { status: 200, headers: audioHeaders });
+      } catch (error) {
+        return json({ error: error?.name === "TimeoutError" || error?.name === "AbortError" ? "tts_timeout" : "tts_unreachable" }, 502, headers);
+      }
+    }
     if (request.method !== "POST" || (url.pathname !== "/api/chat" && url.pathname !== "/")) {
       return json({ error: "not_found" }, 404, headers);
     }
