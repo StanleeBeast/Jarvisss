@@ -166,6 +166,27 @@ body[data-layout="minimal"] .panel:before,body[data-layout="minimal"] .panel:aft
 @keyframes boot-telemetry{to{opacity:.8}}
 @keyframes boot-crosshair{to{transform:rotate(360deg)}}
 @media(max-width:520px){.boot-corner{font-size:7px;letter-spacing:.08em}.boot-core{width:min(72vw,320px)}.boot-content{bottom:-82px}.boot-subtitle{font-size:6px}.boot-skip{font-size:9px}}
+
+/* LIVE REACTOR: the core wakes up while JARVIS speaks */
+#voicepanel{transition:border-color .35s ease,box-shadow .35s ease,background .35s ease}
+#voicepanel .orb{--voice-energy:.2;transform-style:preserve-3d;will-change:transform,filter}
+#voicepanel .orb:before{transition:inset .28s ease,border-width .28s ease,box-shadow .28s ease}
+#voicepanel .orb:after{transition:inset .28s ease}
+#voicepanel.talking{border-color:color-mix(in srgb,var(--purple),transparent 22%)!important;box-shadow:inset 0 0 45px color-mix(in srgb,var(--purple),transparent 94%),0 0 35px color-mix(in srgb,var(--purple),transparent 86%)!important}
+#voicepanel.talking .orb{animation:reactor-speak 1.25s ease-in-out infinite!important;filter:drop-shadow(0 0 calc(18px + 25px * var(--voice-energy)) color-mix(in srgb,var(--purple),transparent 28%))!important}
+#voicepanel.talking .orb:before{inset:5px!important;border-width:2px!important;box-shadow:0 0 24px color-mix(in srgb,var(--purple),transparent 58%)}
+#voicepanel.talking .orb:after{inset:17px!important;border-style:solid!important}
+#voicepanel.talking .orb span{animation:reactor-text 1s ease-in-out infinite alternate}
+#voicepanel .orb:focus-visible{outline:2px solid var(--purple);outline-offset:6px}
+@keyframes reactor-speak{0%,100%{transform:scale(.985) rotate(0deg)}35%{transform:scale(calc(1 + var(--voice-energy)*.035)) rotate(2deg)}70%{transform:scale(1.015) rotate(-2deg)}}
+@keyframes reactor-text{from{opacity:.65;text-shadow:0 0 5px var(--purple)}to{opacity:1;text-shadow:0 0 18px var(--purple),0 0 32px color-mix(in srgb,var(--purple),transparent 35%)}}
+#bootSequence .boot-core{animation:boot-rise 1.1s ease-out both,boot-breathe 3s 1.1s ease-in-out infinite}
+#bootSequence .boot-title{animation:boot-title-in 1.2s .2s both;text-shadow:0 0 24px color-mix(in srgb,var(--purple),transparent 58%)}
+#bootSequence .boot-status{transition:opacity .2s ease,text-shadow .2s ease}
+#bootSequence .boot-track span{box-shadow:0 0 18px var(--purple),0 0 38px color-mix(in srgb,var(--purple),transparent 45%)}
+@keyframes boot-breathe{0%,100%{filter:drop-shadow(0 0 18px color-mix(in srgb,var(--purple),transparent 58%))}50%{filter:drop-shadow(0 0 38px color-mix(in srgb,var(--purple),transparent 28%))}}
+@keyframes boot-title-in{0%{opacity:0;letter-spacing:.7em;filter:blur(7px);transform:translateY(8px)}100%{opacity:1;letter-spacing:.3em;filter:blur(0);transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){#voicepanel.talking .orb,#voicepanel.talking .orb span,#bootSequence .boot-core,#bootSequence .boot-title{animation:none!important}}
 </style>
 </head>
 <body>
@@ -240,7 +261,7 @@ $('dlgOk').onclick=()=>{const fn=pending;pending=null;$('overlay').style.display
 function safeText(el,txt){el.textContent=txt}
 function addChat(who,text){data.chat.push({who,text,at:Date.now()});data.chat=data.chat.slice(-60);saveData();renderChat()}
 function renderChat(){const box=$('chatlog');box.innerHTML='';data.chat.slice(-40).forEach(m=>{const b=document.createElement('div');b.className='bubble '+(m.who==='du'?'user':'jarvis');const s=document.createElement('small');s.textContent=m.who==='du'?'DU':'JARVIS';b.append(s,document.createTextNode(m.text));box.append(b)});box.scrollTop=box.scrollHeight}
-function speak(text){if(!('speechSynthesis'in window)){toast('Sprachausgabe in diesem Browser nicht verfügbar.');return}window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';u.rate=Number(data.profile.rate??.88);u.pitch=Number(data.profile.pitch??.8);u.volume=Number(data.profile.volume??1);const vs=window.speechSynthesis.getVoices();const selectedVoice=data.profile.voiceName||$('voiceChoice')?.value||'';const v=vs.find(x=>x.name===selectedVoice)||vs.find(x=>x.lang?.startsWith('de')&&/premium|enhanced|natural|neural/i.test(x.name))||vs.find(x=>x.lang?.startsWith('de'));if(v)u.voice=v;$('voicepanel').classList.add('talking');u.onend=()=> $('voicepanel').classList.remove('talking');u.onerror=()=> $('voicepanel').classList.remove('talking');window.speechSynthesis.speak(u)}
+function speak(text){if(!('speechSynthesis'in window)){toast('Sprachausgabe in diesem Browser nicht verfügbar.');return}window.speechSynthesis.cancel();const panel=$('voicepanel');const orb=panel?.querySelector('.orb');const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';u.rate=Number(data.profile.rate??.88);u.pitch=Number(data.profile.pitch??.8);u.volume=Number(data.profile.volume??1);const vs=window.speechSynthesis.getVoices();const selectedVoice=data.profile.voiceName||$('voiceChoice')?.value||'';const v=vs.find(x=>x.name===selectedVoice)||vs.find(x=>x.lang?.startsWith('de')&&/premium|enhanced|natural|neural/i.test(x.name))||vs.find(x=>x.lang?.startsWith('de'));if(v)u.voice=v;panel?.classList.add('talking');document.body.classList.add('jarvis-speaking');if(orb)orb.style.setProperty('--voice-energy','.8');u.onboundary=e=>{const energy=.35+Math.min(.65,((e.charIndex||0)%7)/10);if(orb)orb.style.setProperty('--voice-energy',String(energy))};const finish=()=>{panel?.classList.remove('talking');document.body.classList.remove('jarvis-speaking');if(orb)orb.style.removeProperty('--voice-energy')};u.onend=finish;u.onerror=finish;window.speechSynthesis.speak(u)}
 function humor(line){if(data.profile.humor==='low')return line;if(data.profile.humor==='playful')return line+' Immerhin läuft der Prozessor.';return line}
 function responseFor(raw){const s=raw.trim(),l=s.toLowerCase();if(!s)return 'Ich höre.';
  if(/^merk dir\s*:/i.test(s)||/^speichere\s*:/i.test(s)){const m=s.replace(/^(merk dir|speichere)\s*:/i,'').trim();if(m){data.memories.unshift({id:Date.now(),text:m,kind:'preference',createdAt:new Date().toISOString()});saveData();renderMemories();return 'Verstanden. Ich speichere das als deine Vorliebe. Du kannst den Eintrag jederzeit im Gedächtnis löschen.'}return 'Was genau soll ich mir merken?'}
