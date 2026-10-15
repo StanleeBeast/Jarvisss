@@ -111,119 +111,25 @@ function systemPrompt(payload) {
     "Feedback zur Personalisierung: " + JSON.stringify(feedback)
   ].join("\n\n");
 }
-export default {
-  async fetch(request, env) {
-    const origin = request.headers.get("Origin") || "";
-    const headers = corsHeaders(origin, env);
-    const allowed = (env.ALLOWED_ORIGINS || "https://stanleebeast.github.io").split(",").map(v => v.trim());
-    if (origin && !allowed.includes(origin)) return json({ error: "origin_not_allowed" }, 403, headers);
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
-    const url = new URL(request.url);
-    if (request.method === "GET" && url.pathname === "/health") {
-      return json({ status: "ok", service: "jarvisss-ai-proxy", configured: Boolean(env.OPENAI_API_KEY && env.JARVIS_ACCESS_TOKEN) }, 200, headers);
-    }
-    if (request.method === "GET" && url.pathname === "/api/news") {
-      if (!env.JARVIS_ACCESS_TOKEN) return json({ error: "backend_not_configured" }, 503, headers);
-      const auth = request.headers.get("Authorization") || "";
-      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-      if (!(await sameSecret(token, env.JARVIS_ACCESS_TOKEN))) return json({ error: "unauthorized" }, 401, headers);
-      try {
-        const result = await getNews(url.searchParams.get("section") || "local");
-        if (result.error) return json(result, 400, headers);
-        return json(result, 200, headers);
-      } catch (error) {
-        return json({ error: "news_source_unavailable" }, 502, headers);
-      }
-    }
-    if (request.method === "POST" && url.pathname === "/api/tts") {
-      if (!env.OPENAI_API_KEY || !env.JARVIS_ACCESS_TOKEN) return json({ error: "backend_not_configured" }, 503, headers);
-      const auth = request.headers.get("Authorization") || "";
-      const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-      if (!(await sameSecret(token, env.JARVIS_ACCESS_TOKEN))) return json({ error: "unauthorized" }, 401, headers);
-      let payload;
-      try {
-        const raw = await request.text();
-        if (new TextEncoder().encode(raw).length > 12000) return json({ error: "request_too_large" }, 413, headers);
-        payload = JSON.parse(raw);
-      } catch {
-        return json({ error: "invalid_json" }, 400, headers);
-      }
-      const input = clip(payload?.text, 4000).trim();
-      if (!input) return json({ error: "text_required" }, 400, headers);
-      try {
-        const upstream = await fetch("https://api.openai.com/v1/audio/speech", {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + env.OPENAI_API_KEY,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini-tts",
-            voice: "coral",
-            input,
-            instructions: "Sprich auf Deutsch. Klinge warm, ruhig, natürlich und souverän, wie ein hochwertiger persönlicher KI-Assistent. Nutze natürliche Pausen und klare Aussprache. Nicht übertrieben dramatisch, nicht monoton, nicht übermäßig langsam."
-          }),
-          signal: AbortSignal.timeout(40000)
-        });
-        if (!upstream.ok) return json({ error: upstream.status === 429 ? "tts_rate_limited" : "tts_request_failed", status: upstream.status }, 502, headers);
-        const audioHeaders = new Headers(headers);
-        audioHeaders.set("Content-Type", upstream.headers.get("Content-Type") || "audio/mpeg");
-        audioHeaders.set("Cache-Control", "no-store");
-        return new Response(upstream.body, { status: 200, headers: audioHeaders });
-      } catch (error) {
-        return json({ error: error?.name === "TimeoutError" || error?.name === "AbortError" ? "tts_timeout" : "tts_unreachable" }, 502, headers);
-      }
-    }
-    if (request.method !== "POST" || (url.pathname !== "/api/chat" && url.pathname !== "/")) {
-      return json({ error: "not_found" }, 404, headers);
-    }
-    if (!env.OPENAI_API_KEY || !env.JARVIS_ACCESS_TOKEN) {
-      return json({ error: "backend_not_configured" }, 503, headers);
-    }
-    const auth = request.headers.get("Authorization") || "";
-    const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-    if (!(await sameSecret(token, env.JARVIS_ACCESS_TOKEN))) {
-      return json({ error: "unauthorized" }, 401, headers);
-    }
-    const declaredLength = Number(request.headers.get("Content-Length") || 0);
-    if (declaredLength > MAX_BODY_BYTES) return json({ error: "request_too_large" }, 413, headers);
-    let payload;
+
+const AGENT_TOOLS = [
+  { type: "function", function: { name: "get_current_time", description: "Gibt Datum und Uhrzeit in der Nutzer-Zeitzone zurück.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
+  { type: "function", function: { name: "get_news", description: "Lädt aktuelle Schlagzeilen für eine erlaubte Rubrik.", parameters: { type: "object", properties: { section: { type: "string", enum: ["local", "saxony", "germany", "world"] } }, required: ["section"], additionalProperties: false } } },
+  { type: "function", function: { name: "draft_task", description: "Erstellt einen Aufgabenentwurf. Speichert oder erledigt nichts automatisch.", parameters: { type: "object", properties: { title: { type: "string" }, steps: { type: "array", items: { type: "string" } }, needs_confirmation: { type: "boolean" } }, required: ["title", "steps", "needs_confirmation"], additionalProperties: false } } }
+];
+async function executeAgentTool(name, rawArgs, timezone) {
+  let args = {};
+  try { args = JSON.parse(rawArgs || "{}"); } catch { return { error: "invalid_tool_arguments" }; }
+  if (name === "get_current_time") {
+    const now = new Date();
+    return { now: now.toLocaleString("de-DE", { timeZone: timezone || "Europe/Berlin", dateStyle: "full", timeStyle: "long" }), timezone: timezone || "Europe/Berlin" };
+  }
+  if (name === "get_news") {
+    if (!["local", "saxony", "germany", "world"].includes(args.section)) return { error: "section_not_allowed" };
     try {
-      const raw = await request.text();
-      if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) return json({ error: "request_too_large" }, 413, headers);
-      payload = JSON.parse(raw);
-    } catch {
-      return json({ error: "invalid_json" }, 400, headers);
-    }
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return json({ error: "invalid_payload" }, 400, headers);
-    if (payload.mode === "healthcheck") {
-      return json({ reply: "Verbindungstest erfolgreich.", model: env.OPENAI_MODEL || "gpt-4.1-mini" }, 200, headers);
-    }
-    const messages = safeMessages(payload.messages);
-    if (!messages.length) return json({ error: "messages_required" }, 400, headers);
-    try {
-      const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + env.OPENAI_API_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: env.OPENAI_MODEL || "gpt-4.1-mini",
-          messages: [{ role: "system", content: systemPrompt(payload) }, ...messages],
-          temperature: 0.7,
-          max_tokens: 900
-        }),
-        signal: AbortSignal.timeout(40_000)
-      });
-      if (!upstream.ok) {
-        // Do not expose upstream response bodies or account details to the browser.
-        return json({ error: upstream.status === 429 ? "model_rate_limited" : "model_request_failed", status: upstream.status }, 502, headers);
-      }
-      const result = await upstream.json();
-      const reply = result?.choices?.[0]?.message?.content;
-      if (typeof reply !== "string" || !reply.trim()) return json({ error: "empty_model_response" }, 502, headers);
-      return json({ reply: reply.trim(), model: result.model || env.OPENAI_MODEL || "gpt-4.1-mini" }, 200, headers);
+      const result = await runAgent(payload, env);
+      if (result.error) return json(result, result.status || 502, headers);
+      return json(result, 200, headers);
     } catch (error) {
       return json({ error: error?.name === "TimeoutError" || error?.name === "AbortError" ? "model_timeout" : "model_unreachable" }, 502, headers);
     }
