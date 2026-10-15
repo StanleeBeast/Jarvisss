@@ -144,6 +144,28 @@ body[data-layout="minimal"] .panel:before,body[data-layout="minimal"] .panel:aft
 #view-design label,#view-settings label{display:block;margin:12px 0;line-height:1.7}
 #logoText{letter-spacing:.1em;text-transform:uppercase}
 @media(max-width:650px){body[data-layout="minimal"] #view-home .hero{grid-template-columns:1fr!important}body[data-layout="minimal"] #view-home .grid{grid-template-columns:1fr!important}body[data-layout="minimal"] #view-home .hero>.panel{min-height:auto!important}}
+
+/* CINEMATIC STARTUP v2 — reactor, scanner, telemetry and system boot */
+#bootSequence{background:radial-gradient(ellipse at 50% 46%,#0a3144 0,#04101c 30%,#010409 74%)}
+.boot-grid{position:absolute;inset:-20%;opacity:.24;background-image:linear-gradient(#54dffb12 1px,transparent 1px),linear-gradient(90deg,#54dffb12 1px,transparent 1px);background-size:36px 36px;transform:perspective(500px) rotateX(62deg) scale(1.6);transform-origin:center 65%;mask-image:linear-gradient(transparent,#000 24%,#000 72%,transparent);animation:boot-grid-drift 12s linear infinite}
+.boot-scan{position:absolute;left:0;right:0;top:-20%;height:18%;background:linear-gradient(transparent,#50e7ff12 40%,#65edff44 50%,#50e7ff12 60%,transparent);filter:blur(1px);animation:boot-scan 4s ease-in-out infinite}
+.boot-corner{position:absolute;font:9px/1.8 ui-monospace,monospace;letter-spacing:.14em;color:#7ec6d5;opacity:0;animation:boot-telemetry 1s .8s ease forwards}
+.boot-corner-tl{top:calc(18px + env(safe-area-inset-top));left:calc(18px + env(safe-area-inset-left))}
+.boot-corner-tr{top:calc(18px + env(safe-area-inset-top));right:calc(18px + env(safe-area-inset-right));text-align:right}
+.boot-corner-bl{bottom:calc(20px + env(safe-area-inset-bottom));left:calc(18px + env(safe-area-inset-left))}
+.boot-corner-br{bottom:calc(20px + env(safe-area-inset-bottom));right:calc(18px + env(safe-area-inset-right));text-align:right}
+.boot-live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#69ffd7;box-shadow:0 0 12px #69ffd7;animation:boot-pulse 1s infinite alternate}
+.boot-ring.r4{inset:3%;border:1px solid #b9fbff22;border-left-color:var(--purple);border-right-color:transparent;animation:boot-spin-reverse 13s linear infinite}
+.boot-crosshair{position:absolute;width:48%;height:48%;border:1px solid #7cecff1b;border-radius:50%;background:linear-gradient(transparent calc(50% - .5px),#6ee9ff40 50%,transparent calc(50% + .5px)),linear-gradient(90deg,transparent calc(50% - .5px),#6ee9ff40 50%,transparent calc(50% + .5px));animation:boot-crosshair 5s linear infinite}
+.boot-title{letter-spacing:.3em!important}
+.boot-subtitle{font-size:7px;letter-spacing:.15em;color:#5793a2;margin-bottom:15px}
+.boot-init{font-size:8px;color:#5a8997;letter-spacing:.13em;margin-top:10px;min-height:12px}
+.boot-track span{animation:boot-progress 4.6s .25s ease-out forwards}
+@keyframes boot-scan{0%{transform:translateY(0);opacity:0}12%{opacity:1}85%{opacity:.7}100%{transform:translateY(850%);opacity:0}}
+@keyframes boot-grid-drift{to{background-position:0 72px,72px 0}}
+@keyframes boot-telemetry{to{opacity:.8}}
+@keyframes boot-crosshair{to{transform:rotate(360deg)}}
+@media(max-width:520px){.boot-corner{font-size:7px;letter-spacing:.08em}.boot-core{width:min(72vw,320px)}.boot-content{bottom:-82px}.boot-subtitle{font-size:6px}.boot-skip{font-size:9px}}
 </style>
 </head>
 <body>
@@ -199,7 +221,7 @@ body[data-layout="minimal"] .panel:before,body[data-layout="minimal"] .panel:aft
 </section>
 <div class="bottom">J.A.R.V.I.S. · IPAD PWA PROTOTYPE · PERSONALITY BUILD 0.2</div>
 </main>
-<div id="bootSequence" role="status" aria-live="polite" aria-label="JARVIS wird gestartet"><div class="boot-core" aria-hidden="true"><div class="boot-ring"></div><div class="boot-ring r2"></div><div class="boot-ring r3"></div><div class="boot-content"><div class="boot-kicker">Stark Industries · Personal AI</div><div class="boot-title">J.A.R.V.I.S.</div><div class="boot-status" id="bootStatus">INITIALISIERE SYSTEME …</div><div class="boot-track"><span></span></div></div></div><button type="button" class="boot-skip" id="bootSkip">Startsequenz überspringen</button></div>
+<div id="bootSequence" role="status" aria-live="polite" aria-label="JARVIS wird gestartet"><div class="boot-grid" aria-hidden="true"></div><div class="boot-scan" aria-hidden="true"></div><div class="boot-corner boot-corner-tl">J.A.R.V.I.S. / CORE 07<br>SECURE LINK: ACTIVE</div><div class="boot-corner boot-corner-tr">PERSONAL AI<br>BUILD 0.3.1</div><div class="boot-corner boot-corner-bl"><span class="boot-live-dot"></span> NEURAL INTERFACE ONLINE</div><div class="boot-corner boot-corner-br">SYSTEM CHECK <span id="bootPercent">00%</span></div><div class="boot-core" aria-hidden="true"><div class="boot-ring"></div><div class="boot-ring r2"></div><div class="boot-ring r3"></div><div class="boot-ring r4"></div><div class="boot-crosshair"></div><div class="boot-content"><div class="boot-kicker">STARK INDUSTRIES · PERSONAL AI</div><div class="boot-title">J.A.R.V.I.S.</div><div class="boot-subtitle">JUST A RATHER VERY INTELLIGENT SYSTEM</div><div class="boot-status" id="bootStatus">INITIALISIERE SYSTEME …</div><div class="boot-track"><span></span></div><div class="boot-init" id="bootInit">KERNMODULE WERDEN GELADEN</div></div></div><button type="button" class="boot-skip" id="bootSkip">Überspringen ↗</button></div>
 <div class="toast" id="toast"></div>
 <div class="overlay" id="overlay"><div class="dialog"><div class="eyebrow">BESTÄTIGUNG ERFORDERLICH</div><h2 id="dlgTitle">Aktion bestätigen</h2><p class="hint" id="dlgText"></p><div class="dialog-actions"><button id="dlgCancel">Abbrechen</button><button id="dlgOk" class="primary">Bestätigen</button></div></div></div>
 <script>
@@ -306,13 +328,19 @@ $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettin
  const screen=$('bootSequence'),status=$('bootStatus'),skip=$('bootSkip');
  if(!screen)return;
  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
- const messages=['INITIALISIERE SYSTEME …','PRÜFE SCHNITTSTELLEN …','LADE PERSÖNLICHES PROFIL …','ALLE SYSTEME BEREIT'];
+ const messages=[
+  {at:300,status:'VERBINDE NEURAL INTERFACE …',init:'NEURAL LINK / HANDSHAKE'},
+  {at:1050,status:'AKTIVIERE HOLOGRAFISCHE SYSTEME …',init:'HOLOGRAPHIC ARRAY / ONLINE'},
+  {at:1900,status:'SYNCHRONISIERE PERSÖNLICHES PROFIL …',init:'USER PROFILE / SYNCHRONIZED'},
+  {at:2800,status:'PRÜFE SICHERHEIT & SCHNITTSTELLEN …',init:'SECURITY PROTOCOL / VERIFIED'},
+  {at:3850,status:'ALLE SYSTEME BEREIT',init:'WELCOME BACK, CHEF.'}
+ ];
  let timerIds=[];
  const finish=()=>{timerIds.forEach(clearTimeout);screen.classList.add('boot-hidden');setTimeout(()=>screen.remove(),900)};
  if(skip)skip.addEventListener('click',finish,{once:true});
  if(reduced){if(status)status.textContent='SYSTEM BEREIT';setTimeout(finish,350);return}
- messages.forEach((message,i)=>timerIds.push(setTimeout(()=>{if(status)status.textContent=message},[350,1150,2050,3000][i])));
- timerIds.push(setTimeout(finish,3900));
+ messages.forEach((message,i)=>timerIds.push(setTimeout(()=>{if(status)status.textContent=message.status;const init=$('bootInit');if(init)init.textContent=message.init;const percent=$('bootPercent');if(percent)percent.textContent=String([8,31,56,82,100][i]).padStart(2,'0')+'%'},message.at)));
+ timerIds.push(setTimeout(finish,5200));
 })();
 if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').then(()=>{$('status').textContent='PWA BEREIT'}).catch(()=>{$('status').textContent='SYSTEM BEREIT'});
 </script>
