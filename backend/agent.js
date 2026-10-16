@@ -13,6 +13,9 @@ import { listTasks, taskFromRow, validateTaskFields, TASK_PRIORITIES } from "./t
 import { validateMemory, MEMORY_KINDS } from "./memories.js";
 import { checkBudget, addUsage } from "./usage.js";
 import { listStudySets } from "./study.js";
+import { recentMessageInsights } from "./messages.js";
+import { safeTimezone, localToUtc, formatLocal } from "./time.js";
+export { safeTimezone, localToUtc, formatLocal };
 
 export const DEFAULT_MODEL = "gpt-4.1-mini";
 export const DEFAULT_TIMEZONE = "Europe/Berlin";
@@ -26,35 +29,6 @@ const DEFAULT_LOCATION = { name: "Miltitz bei Nebelschütz", lat: 51.255, lon: 1
 const WEATHER_CODES = { 0: "klar", 1: "überwiegend klar", 2: "teilweise bewölkt", 3: "bedeckt", 45: "Nebel", 48: "Nebel mit Reif", 51: "leichter Nieselregen", 53: "Nieselregen", 55: "starker Nieselregen", 61: "leichter Regen", 63: "Regen", 65: "starker Regen", 71: "leichter Schneefall", 73: "Schneefall", 75: "starker Schneefall", 80: "Regenschauer", 81: "kräftige Regenschauer", 82: "heftige Regenschauer", 95: "Gewitter", 96: "Gewitter mit Hagel", 99: "schweres Gewitter mit Hagel" };
 
 const isTimeout = (error) => error?.name === "TimeoutError" || error?.name === "AbortError";
-
-// --- Zeit -----------------------------------------------------------------------------------------
-
-export function safeTimezone(value) {
-  const tz = clip(value, 100) || DEFAULT_TIMEZONE;
-  try { new Intl.DateTimeFormat("de-DE", { timeZone: tz }); return tz; } catch { return DEFAULT_TIMEZONE; }
-}
-function tzOffsetMs(utcMs, tz) {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(utcMs));
-  const get = (type) => Number(parts.find(p => p.type === type).value);
-  return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second")) - utcMs;
-}
-// Wandelt eine lokale Zeit „YYYY-MM-DDTHH:MM“ in der Zeitzone des Nutzers in UTC um – inklusive Sommerzeit.
-export function localToUtc(local, tz) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(local || "").trim());
-  if (!m) return null;
-  const [y, mo, d, h, mi] = m.slice(1).map(Number);
-  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null;
-  const naive = Date.UTC(y, mo - 1, d, h, mi);
-  let utc = naive - tzOffsetMs(naive, tz);
-  const corrected = naive - tzOffsetMs(utc, tz);
-  if (corrected !== utc) utc = corrected;
-  const check = new Date(utc);
-  if (Number.isNaN(check.valueOf())) return null;
-  return check.toISOString();
-}
-export function formatLocal(iso, tz) {
-  return new Date(iso).toLocaleString("de-DE", { timeZone: tz, weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
 
 // --- Kontext --------------------------------------------------------------------------------------
 
@@ -163,6 +137,17 @@ export const TOOLS = [
     run: async (_args, ctx) => {
       try { return { sets: (await listStudySets(ctx.env.DB)).slice(0, 30), hint: "Neue Lernsets entstehen im Lernmodus (Knopf „Lernen“) aus einem PDF oder eingefügtem Text." }; }
       catch { return { error: "study_storage_unavailable" }; }
+    }
+  },
+  {
+    name: "list_message_insights",
+    description: "Liest die Auswertungen der Chats, die der Nutzer selbst importiert hat (wichtige Nachrichten, erkannte Aufgaben). Nur lesend. Kein Zugriff auf WhatsApp selbst.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    category: "A", access: "read", requiresConfirmation: false, timeoutMs: 5000,
+    available: (env) => Boolean(env.DB),
+    run: async (_args, ctx) => {
+      try { return { imports: await recentMessageInsights(ctx.env.DB), note: "Namen anderer Personen sind pseudonymisiert. Nur importierte Chats sind bekannt; neue Nachrichten kennt JARVIS nicht." }; }
+      catch { return { error: "message_storage_unavailable" }; }
     }
   },
   {

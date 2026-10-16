@@ -7,6 +7,7 @@
     { id: 'system', label: 'System', view: 'view-system' },
     { id: 'tasks', label: 'Aufgaben', view: 'view-tasks' },
     { id: 'study', label: 'Lernen', view: 'view-study' },
+    { id: 'messages', label: 'Nachrichten', view: 'view-messages' },
     { id: 'settings', label: 'Stimme & KI', view: 'view-settings' },
     { id: 'devices', label: 'Geräte', view: 'view-devices' },
     { id: 'automation', label: 'Automatisierungen', view: 'view-automation' },
@@ -63,6 +64,7 @@
     if (tab.id === 'devices') window.JarvisAuth?.loadDevices();
     if (tab.id === 'automation') window.JarvisAutomation?.load();
     if (tab.id === 'study') window.JarvisStudy?.load();
+    if (tab.id === 'messages') window.JarvisMessages?.load();
     if (tab.id === 'memory') window.JarvisMemory?.sync();
     if (tab.id === 'assistant') renderChat();
     if (tab.id === 'planner') renderEvents();
