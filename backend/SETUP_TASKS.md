@@ -2,9 +2,9 @@
 
 ## Status
 
-Die Tasks-API ist im Branch `feature/durable-task-foundation` vorbereitet. Sie ist **noch nicht produktiv aktiv**, solange in Cloudflare keine D1-Datenbank als `DB` gebunden und die Migration angewendet wurde. Ohne diese Bindung antwortet die API mit `503 storage_not_configured`; es werden keine Aufgaben gespeichert.
+Die Tasks-API ist implementiert, getestet und in der JARVIS-Oberfläche unter **Einstellungen → Aufgaben** nutzbar. Sie ist **noch nicht produktiv aktiv**, solange in Cloudflare keine D1-Datenbank als `DB` gebunden und die Migration angewendet wurde. Ohne diese Bindung antwortet die API mit `503 storage_not_configured`; es werden keine Aufgaben gespeichert.
 
-Die bestehende Chat-Funktion und das bisherige Tool `draft_task` bleiben davon getrennt. Ein KI-Entwurf wird nicht automatisch in die Datenbank geschrieben. Das Speichern muss über eine bewusste UI-Aktion erfolgen.
+Der KI-Agent kann Aufgaben über das Werkzeug `list_tasks` **nur lesen**. `draft_task` bleibt ein Entwurf. Gespeichert oder geändert wird nur über eine bewusste Aktion in der Oberfläche.
 
 ## 1. D1-Datenbank anlegen
 
@@ -18,9 +18,17 @@ Alternativ kann eine lokal installierte Wrangler-CLI mit dem bereits autorisiert
 npx wrangler d1 create jarvisss-db
 ```
 
-## 2. Worker an D1 binden
+## 2. Worker an D1 binden (empfohlen, iPad-tauglich)
 
-Ergänze in `backend/wrangler.toml` die folgende Konfiguration und ersetze `<DATABASE_ID>` durch die tatsächliche ID:
+1. Der Cloudflare-API-Token im GitHub-Secret `CLOUDFLARE_API_TOKEN` braucht zusätzlich die Berechtigung **Account → D1 → Edit**.
+2. GitHub → **Settings → Secrets and variables → Actions → Reiter „Variables“ → New repository variable**:
+   - `D1_DATABASE_ID` = die Database ID aus Schritt 1
+   - optional `D1_DATABASE_NAME`, wenn die Datenbank nicht `jarvisss-db` heißt
+3. **Actions → Deploy JARVIS AI worker → Run workflow.**
+
+Der Workflow führt zuerst alle Tests aus. Dann ergänzt er die D1-Bindung nur für dieses Deployment in `wrangler.toml`, wendet `migrations/*.sql` remote an und deployt den Worker. Die Datei im Repository bleibt unverändert. Ohne die Variable wird wie bisher ohne Datenbank deployt.
+
+### Alternative mit Computer und Wrangler-CLI
 
 ```toml
 [[d1_databases]]
@@ -30,28 +38,19 @@ database_id = "<DATABASE_ID>"
 migrations_dir = "migrations"
 ```
 
-Die Platzhalter-ID darf nicht stehen bleiben. Bis zur Einrichtung sollte die bestehende Konfiguration unverändert bleiben, damit ein Deployment nicht versehentlich fehlschlägt.
-
-## 3. Migration anwenden
-
-Im Verzeichnis `backend` ausführen:
-
 ```bash
 npx wrangler d1 migrations apply jarvisss-db --remote --config wrangler.toml
 ```
 
-Die Migration `migrations/0001_tasks.sql` legt die Tabelle `tasks` und zwei Indizes an. Die Migration zuerst prüfen, bevor sie auf einer Datenbank mit vorhandenen Daten ausgeführt wird.
+Wird die Bindung direkt in `wrangler.toml` eingetragen, darf die Variable `D1_DATABASE_ID` nicht zusätzlich gesetzt sein. Sonst entsteht eine doppelte Bindung.
 
-## 4. Secrets und Deployment
+## 3. Prüfen
 
-Das bestehende Deployment erwartet die GitHub Actions Secrets:
+In JARVIS **Einstellungen → System → Jetzt prüfen**. Erwartet wird „Datenbank (D1): Verbunden“ und „Aufgaben-API: Verfügbar“. „Migration fehlt“ bedeutet: Datenbank erreichbar, Tabelle fehlt. Dann den Workflow erneut ausführen.
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-- `OPENAI_API_KEY`
-- `JARVIS_ACCESS_TOKEN`
+## 4. Secrets
 
-Diese Werte niemals in Quellcode, Issues, Chat-Nachrichten oder Screenshots einfügen. Die vorhandene Deployment-Workflow-Datei setzt bisher keine D1-Migration automatisch auf. Nach dem Einrichten der Datenbank muss die Migration daher separat angewendet werden. Erst danach kann der Worker über **Actions → Deploy JARVIS AI worker → Run workflow** bereitgestellt werden.
+Erwartete GitHub-Actions-Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `OPENAI_API_KEY`, `JARVIS_ACCESS_TOKEN`. Diese Werte niemals in Quellcode, Issues, Chat-Nachrichten oder Screenshots einfügen.
 
 ## 5. API-Vertrag
 
@@ -88,8 +87,9 @@ Erlaubte Prioritäten: `low`, `normal`, `high`. Erlaubte Statuswerte: `open`, `d
 - Ungültiger Titel, Status, Priorität oder Datumswert wird abgewiesen.
 - PATCH einer nicht existierenden ID liefert `404 task_not_found`.
 - Als erledigt markierte Aufgabe enthält einen Zeitstempel; zurück auf offen löscht ihn.
-- Das Deployment ist erfolgreich und `GET /health` meldet den Worker-Status. Ein Healthcheck allein beweist nicht, dass die Tasks-API und D1 vollständig funktionieren.
+- Das Deployment ist erfolgreich und `GET /api/status` (mit Token) meldet `storage: connected`. `GET /health` allein beweist nicht, dass die Tasks-API und D1 funktionieren.
+- Automatisiert geprüft: `backend/tasks.test.js` testet alle Punkte gegen eine echte SQLite-Datenbank mit der echten Migration.
 
 ## Sicherheitsgrenze
 
-Diese erste Version ist ein Single-User-Grundgerüst, das durch das bestehende gemeinsame JARVIS-Zugriffstoken geschützt wird. Es bietet noch keine getrennten Benutzerkonten, Geräte-Sitzungen oder detaillierte Rollen. Die Tasks-API ist noch nicht mit dem KI-Agenten verbunden; `draft_task` bleibt daher nur ein Entwurf und schreibt nichts automatisch.
+Diese erste Version ist ein Single-User-Grundgerüst, das durch das bestehende gemeinsame JARVIS-Zugriffstoken geschützt wird. Es bietet noch keine getrennten Benutzerkonten, Geräte-Sitzungen oder detaillierte Rollen. Der KI-Agent hat nur Lesezugriff (`list_tasks`). `draft_task` schreibt nichts. Geplant sind Gerätesitzungen statt des gemeinsamen Tokens (siehe `docs/BESTANDSAUFNAHME.md`, Abschnitt 5).

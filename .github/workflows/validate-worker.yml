@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "feature/**"
+      - "claude/**"
   pull_request:
   workflow_dispatch:
 
@@ -28,4 +29,6 @@ jobs:
       - name: Verify tasks API and migration references
         run: |
           grep -q 'handleTasksApi' backend/worker.js
-          grep -q 'binding = "DB"' backend/wrangler.toml || echo "D1 binding intentionally not configured yet; API will return storage_not_configured."
+          grep -q 'binding = "DB"' backend/wrangler.toml || echo "D1 binding not in wrangler.toml; the deploy workflow adds it when the repository variable D1_DATABASE_ID is set."
+      - name: Run frontend checks
+        run: node --test tests/*.test.mjs

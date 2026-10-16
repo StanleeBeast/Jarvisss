@@ -16,6 +16,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Run worker tests before deploying
+        working-directory: backend
+        run: npm test
+      - name: Attach D1 database (optional, from repository variable D1_DATABASE_ID)
+        if: ${{ vars.D1_DATABASE_ID != '' }}
+        working-directory: backend
+        env:
+          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+          D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME || 'jarvisss-db' }}
+        run: |
+          set -eu
+          echo "$D1_DATABASE_ID" | grep -Eq '^[0-9a-fA-F-]{32,36}$' || (echo "D1_DATABASE_ID has an unexpected format"; exit 1)
+          echo "$D1_DATABASE_NAME" | grep -Eq '^[A-Za-z0-9_-]{1,64}$' || (echo "D1_DATABASE_NAME has an unexpected format"; exit 1)
+          printf '\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "%s"\ndatabase_id = "%s"\nmigrations_dir = "migrations"\n' "$D1_DATABASE_NAME" "$D1_DATABASE_ID" >> wrangler.toml
+          echo "D1 binding DB -> $D1_DATABASE_NAME added for this deployment."
+      - name: Apply D1 migrations
+        if: ${{ vars.D1_DATABASE_ID != '' }}
+        working-directory: backend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME || 'jarvisss-db' }}
+        run: npx --yes wrangler d1 migrations apply "$D1_DATABASE_NAME" --remote --config wrangler.toml
       - name: Deploy Cloudflare Worker
         working-directory: backend
         env:
