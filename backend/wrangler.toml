@@ -3,6 +3,10 @@ main = "worker.js"
 compatibility_date = "2026-10-01"
 workers_dev = true
 
+# Zeitplaner (scheduler.js): Erinnerungen, Morgenbriefing, geplante Benachrichtigungen.
+[triggers]
+crons = ["*/5 * * * *"]
+
 [vars]
 ALLOWED_ORIGINS = "https://stanleebeast.github.io"
 OPENAI_MODEL = "gpt-4.1-mini"

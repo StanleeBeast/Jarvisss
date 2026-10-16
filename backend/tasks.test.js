@@ -123,6 +123,7 @@ test("CORS preflight allows PATCH for task updates", async () => {
   }), baseEnv);
   assert.equal(response.status, 204);
   assert.match(response.headers.get("Access-Control-Allow-Methods"), /PATCH/);
+  for (const method of ["PUT", "DELETE"]) assert.match(response.headers.get("Access-Control-Allow-Methods"), new RegExp(method), method + " is used by routines and memories");
   assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
 });
 

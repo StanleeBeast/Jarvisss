@@ -40,6 +40,9 @@
       if (p.payload.priority) lines.push(['Priorität', PRIORITY[p.payload.priority]]);
       if (p.payload.status) lines.push(['Status', STATUS[p.payload.status]]);
       if (p.payload.details) lines.push(['Details', p.payload.details]);
+    } else if (p.type === 'alarm') {
+      lines.push(['Wecker', p.payload.time + ' Uhr (' + p.payload.label + ')']);
+      lines.push(['Über', 'Kurzbefehl „JARVIS Wecker“ auf diesem Gerät']);
     } else if (p.type === 'save_memory') {
       lines.push(['Merken als ' + (KIND[p.payload.kind] || 'Erinnerung'), p.payload.text]);
     }
@@ -73,6 +76,17 @@
     const status = document.createElement('small');
     actions.append(ok, no, status);
     c.append(actions);
+    if (p.type === 'alarm') {
+      ok.textContent = 'Kurzbefehl starten';
+      ok.onclick = () => {
+        if (!window.JarvisAutomation?.runAlarmShortcut(p.payload.time)) return;
+        c.dataset.state = 'saved';
+        status.textContent = 'Kurzbefehl gestartet. Prüfe in der Uhr-App, ob der Wecker gestellt wurde – JARVIS kann das nicht selbst sehen.';
+        ok.remove(); no.remove();
+      };
+      no.onclick = () => { c.dataset.state = 'rejected'; status.textContent = 'Verworfen. Es wurde nichts geändert.'; ok.remove(); no.remove(); };
+      return c;
+    }
     ok.onclick = async () => {
       ok.disabled = no.disabled = true;
       status.textContent = 'Speichere …';
@@ -119,7 +133,7 @@
   const CATEGORY = { A: 'A · Lesen', B: 'B · Vorschlagen' };
   const TOOL_TEXT = {
     get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen',
-    propose_task: 'Aufgabe vorschlagen', propose_task_update: 'Aufgabenänderung vorschlagen', propose_memory: 'Erinnerung vorschlagen', draft_task: 'Text-Entwurf (ohne Datenbank)'
+    propose_task: 'Aufgabe vorschlagen', propose_task_update: 'Aufgabenänderung vorschlagen', propose_memory: 'Erinnerung vorschlagen', propose_alarm: 'Wecker über Kurzbefehl vorschlagen', draft_task: 'Text-Entwurf (ohne Datenbank)'
   };
   function meter(label, used, max) {
     const row = document.createElement('div');

@@ -216,6 +216,17 @@ export const TOOLS = [
     }
   },
   {
+    name: "propose_alarm",
+    description: "Schlägt vor, einen Wecker auf dem Gerät über den Apple-Kurzbefehl „JARVIS Wecker“ zu stellen. JARVIS kann selbst keinen Wecker stellen; der Nutzer startet den Kurzbefehl per Tipp. time_local im Format HH:MM.",
+    parameters: { type: "object", properties: { time_local: { type: "string" }, label: { type: "string" } }, required: ["time_local"], additionalProperties: false },
+    category: "B", access: "prepare", requiresConfirmation: true, timeoutMs: 1000,
+    available: () => true,
+    run: async (args, ctx) => {
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(args.time_local || ""))) return { error: "invalid_time_local", hint: "Format HH:MM" };
+      return addProposal(ctx, { type: "alarm", payload: { time: args.time_local, label: clip(args.label, 60) || "JARVIS" } });
+    }
+  },
+  {
     name: "draft_task",
     description: "Erstellt einen Aufgabenentwurf als Text, wenn kein Aufgabenspeicher verbunden ist. Speichert nichts.",
     parameters: { type: "object", properties: { title: { type: "string" }, steps: { type: "array", items: { type: "string" } } }, required: ["title", "steps"], additionalProperties: false },
@@ -258,7 +269,7 @@ async function executeTool(name, rawArgs, ctx) {
 
 // --- Agent ----------------------------------------------------------------------------------------
 
-function systemPrompt(payload, tools, timezone) {
+function systemPrompt(payload, tools, timezone, ctx) {
   const profile = JSON.stringify(profileSummary(payload.profile));
   const memories = Array.isArray(payload.memories)
     ? payload.memories.slice(0, 30).map(m => ({ text: clip(m?.text, 500), kind: clip(m?.kind, 80) }))
@@ -275,7 +286,10 @@ function systemPrompt(payload, tools, timezone) {
       ? "Möchte der Nutzer etwas anlegen, verschieben, erledigen oder sich merken lassen, nutze die propose_*-Werkzeuge. Danach sagst du klar, dass ein Vorschlag zur Bestätigung bereitliegt (\"Tippe auf Speichern, dann trage ich es ein\"). Sag NIEMALS, es sei bereits gespeichert, erinnert oder geplant. Für Änderungen an bestehenden Aufgaben hole dir zuerst mit list_tasks die id."
       : "Es ist kein Aufgabenspeicher verbunden. Du kannst Aufgaben nur als Text-Entwurf (draft_task) vorbereiten und musst sagen, dass nichts gespeichert wird.",
     "Zeitangaben: Rechne relative Angaben (\"morgen\", \"in zwei Stunden\", \"Freitag\") anhand der aktuellen Zeit in die lokale Zeit des Nutzers um und übergib due_local als YYYY-MM-DDTHH:MM. Ist eine Uhrzeit mehrdeutig (\"um 6\" ohne morgens/abends und ohne klaren Kontext), frage kurz nach, statt zu raten. Nenne in deiner Antwort das Datum mit Wochentag, das due_confirmed_as zurückgibt.",
-    "Erinnerungen: Ein Vorschlag legt eine Aufgabe mit Fälligkeit an. Einen hörbaren Wecker oder eine Push-Benachrichtigung zur Uhrzeit gibt es noch nicht – sag das ehrlich, wenn der Nutzer \"erinnere mich\" oder \"weck mich\" sagt, und empfiehl für einen Wecker die Uhr-App bzw. Siri.",
+    ctx.remindersReady
+      ? "Erinnerungen: Eine bestätigte Aufgabe mit Fälligkeit löst zur Uhrzeit eine Push-Benachrichtigung aus (der Zeitplaner prüft alle 5 Minuten, also bis zu 5 Minuten später). Das ist kein lauter Wecker."
+      : "Erinnerungen: Ein Vorschlag legt eine Aufgabe mit Fälligkeit an. Push-Benachrichtigungen sind auf keinem Gerät eingerichtet oder die Aufgaben-Erinnerungen sind ausgeschaltet – sag ehrlich, dass zur Uhrzeit nichts klingelt, und verweise auf Einstellungen → Automatisierungen.",
+    "Wecker: Für \"weck mich um …\" nutze propose_alarm. Du kannst keinen Wecker selbst stellen und nicht prüfen, ob er gestellt wurde; der Nutzer tippt auf den Vorschlag, der den Kurzbefehl startet, und prüft in der Uhr-App. Ein gewünschtes Briefing danach kannst du zusätzlich als Aufgabe mit Fälligkeit vorschlagen.",
     "Planung: Für Aufträge wie \"Bereite meinen Tag vor\" zerlegst du die Aufgabe selbst in Schritte: Uhrzeit, Wetter, offene Aufgaben, Nachrichten (zuerst lokal/Sachsen, dann Deutschland, dann Welt). Erstelle daraus einen kurzen, priorisierten Plan mit Begründung, plane Pausen ein und nenne fehlende Informationen (z. B. Kalender ist nicht verbunden).",
     "Bei Nachrichten nennst du Quelle und Veröffentlichungszeit und kennzeichnest Meldungen, die älter als 24 Stunden sind. Trenne Fakten von Einschätzungen. Erfinde keine Fakten, Quellen, Termine, Erinnerungen oder erledigten Aktionen.",
     "Du hast keinen Zugriff auf Kalender, WhatsApp, E-Mails, Dateien, Kamera oder andere Apps. Sag das offen, wenn danach gefragt wird.",
@@ -286,12 +300,21 @@ function systemPrompt(payload, tools, timezone) {
   ].join("\n\n");
 }
 
+async function remindersReady(env) {
+  if (!env.DB) return false;
+  try {
+    const subs = await env.DB.prepare("SELECT COUNT(*) AS n FROM push_subscriptions").first();
+    const routine = await env.DB.prepare("SELECT enabled FROM routines WHERE kind = 'task_reminders'").first();
+    return Boolean(subs?.n && routine?.enabled);
+  } catch { return false; }
+}
+
 export async function runAgent(payload, env) {
   const tools = availableTools(env);
   const timezone = safeTimezone(payload.timezone);
-  const ctx = { env, tools, timezone, proposals: [] };
+  const ctx = { env, tools, timezone, proposals: [], remindersReady: await remindersReady(env) };
   const model = env.OPENAI_MODEL || DEFAULT_MODEL;
-  const messages = [{ role: "system", content: systemPrompt(payload, tools, timezone) }, ...safeMessages(payload.messages)];
+  const messages = [{ role: "system", content: systemPrompt(payload, tools, timezone, ctx) }, ...safeMessages(payload.messages)];
   const toolLog = [];
   const usage = { promptTokens: 0, completionTokens: 0 };
   const finish = async (result) => {
