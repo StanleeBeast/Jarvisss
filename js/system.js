@@ -2,7 +2,7 @@
 // Ein Status gilt nur dann als erfolgreich, wenn er in diesem Durchlauf tatsächlich geprüft wurde.
 (function () {
   'use strict';
-  const BUILD = '0.8.0';
+  const BUILD = '0.9.0';
   const LAST_STATUS_KEY = 'jarvis_last_status_v1';
   const LAST_AI_OK_KEY = 'jarvis_last_ai_ok_v1';
   const CORE_LABELS = { idle: 'BEREIT', listening: 'ZUHÖREN', processing: 'VERARBEITE', speaking: 'SPRICHT', success: 'BESTÄTIGT', warning: 'HINWEIS', offline: 'OFFLINE', error: 'FEHLER' };
@@ -52,6 +52,11 @@
     study_storage_unavailable: 'Der Speicher des Lernassistenten antwortet nicht (Migration 0005 angewendet?).',
     study_set_not_found: 'Dieses Lernset gibt es nicht mehr.',
     request_too_large: 'Die Unterlagen sind zu groß. Bitte weniger Seiten wählen.',
+    messages_required: 'Keine auswertbaren Nachrichten gefunden.',
+    too_many_messages: 'Zu viele Nachrichten auf einmal (höchstens 400).',
+    empty_message_result: 'Aus den Nachrichten ließ sich nichts auswerten.',
+    message_storage_unavailable: 'Der Speicher für Nachrichten-Auswertungen antwortet nicht (Migration 0006 angewendet?).',
+    message_import_not_found: 'Diese Auswertung gibt es nicht mehr.',
     unauthorized: 'Das Zugangstoken wird vom Backend abgelehnt.',
     backend_not_configured: 'Im Worker fehlen Secrets (JARVIS_ACCESS_TOKEN bzw. OPENAI_API_KEY).',
     storage_not_configured: 'Die D1-Datenbank ist noch nicht eingerichtet.',

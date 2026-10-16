@@ -16,6 +16,7 @@ import { checkBudget, addUsage, handleUsageApi, getUsage, limits } from "./usage
 import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
 import { handleStudyApi } from "./study.js";
+import { handleMessagesApi } from "./messages.js";
 
 const TTS_VOICES = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"];
 const DEFAULT_TTS_VOICE = "coral";
@@ -108,7 +109,7 @@ async function systemStatus(env, principal) {
       sync: access.devices.state === "available"
         ? { state: "available", detail: "Aufgaben und Gedächtnis: geräteübergreifend. Profil, Stimme und Design: weiterhin nur lokal.", verified: true }
         : { state: "not_available", detail: "Profil, Gedächtnis und Design liegen nur lokal im Browser." },
-      messaging: { state: "manual_only", detail: "WhatsApp/E-Mail nur als vorbereiteter Entwurf, Versand durch dich." }
+      messaging: { state: "manual_only", detail: "Kein Zugriff auf WhatsApp oder E-Mail. Ausgewählte Chats importierst du selbst (Chat exportieren oder einfügen); Antworten sind Entwürfe, die du selbst sendest." }
     }
   };
 }
@@ -181,6 +182,8 @@ export default {
     if (automationResponse) return automationResponse;
     const studyResponse = await handleStudyApi(request, env, headers, url);
     if (studyResponse) return studyResponse;
+    const messagesResponse = await handleMessagesApi(request, env, headers, url);
+    if (messagesResponse) return messagesResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
       const auth = await authenticate(request, env, headers);
       if (auth.response) return auth.response;
