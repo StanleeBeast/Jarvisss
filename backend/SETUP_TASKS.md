@@ -28,7 +28,7 @@ npx wrangler d1 create jarvisss-db
 
 Der Workflow führt zuerst alle Tests aus. Dann ergänzt er die D1-Bindung nur für dieses Deployment in `wrangler.toml`, wendet alle Migrationen in `migrations/` remote an (bereits angewendete werden übersprungen) und deployt den Worker. Die Datei im Repository bleibt unverändert. Ohne die Variable wird wie bisher ohne Datenbank deployt.
 
-Migrationen: `0001_tasks.sql` (Aufgaben) `0002_devices_memories.sql` (Gerätesitzungen, Kopplungscodes, Gedächtnis, Aktionsprotokoll) `0003_usage.sql` (Nutzungszähler für Tageslimits) `0004_automation.sql` (Push-Abos, Routinen, geplante Benachrichtigungen, Briefings) `0005_study.sql` (Lernsets und Karten) und `0006_messages.sql` (Nachrichten-Auswertungen, Einstellungen).
+Migrationen: `0001_tasks.sql` (Aufgaben) `0002_devices_memories.sql` (Gerätesitzungen, Kopplungscodes, Gedächtnis, Aktionsprotokoll) `0003_usage.sql` (Nutzungszähler für Tageslimits) `0004_automation.sql` (Push-Abos, Routinen, geplante Benachrichtigungen, Briefings) `0005_study.sql` (Lernsets und Karten) `0006_messages.sql` (Nachrichten-Auswertungen, Einstellungen) und `0007_planner.sql` (Tagesplan-Änderungen).
 
 ### Alternative mit Computer und Wrangler-CLI
 

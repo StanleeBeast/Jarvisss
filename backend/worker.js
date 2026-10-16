@@ -17,6 +17,7 @@ import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
 import { handleStudyApi } from "./study.js";
 import { handleMessagesApi } from "./messages.js";
+import { handlePlannerApi } from "./planner.js";
 
 const TTS_VOICES = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"];
 const DEFAULT_TTS_VOICE = "coral";
@@ -57,6 +58,15 @@ async function storageStatus(env) {
     return { state: "connected", detail: "Datenbank erreichbar, Tabelle tasks vorhanden.", verified: true };
   } catch {
     return { state: "error", detail: "Datenbankabfrage fehlgeschlagen." };
+  }
+}
+async function plannerStatus(env) {
+  if (!env.DB) return { state: "not_configured", detail: "Der Tagesplaner benötigt D1." };
+  try {
+    await env.DB.prepare("SELECT COUNT(*) AS n FROM day_plans").first();
+    return { state: "available", detail: "Tagesplan aus Aufgaben, festen Zeiten, Routinen und Pausen. Ohne Kalenderzugriff.", verified: true };
+  } catch {
+    return { state: "migration_missing", detail: "Tabelle für den Tagesplaner fehlt. Migration 0007 anwenden (Deploy-Workflow erneut ausführen)." };
   }
 }
 async function studyStatus(env) {
@@ -102,6 +112,7 @@ async function systemStatus(env, principal) {
       costs: await costStatus(env),
       ...(await schedulerStatus(env)),
       study: await studyStatus(env),
+      planner: await plannerStatus(env),
       calendar: { state: "not_available", detail: "Kein Kalenderzugriff. Termine nur als .ics-Export; echter Zugriff braucht eine native App (EventKit)." },
       memory: access.devices.state === "available"
         ? { state: "available", detail: "Gedächtnis wird in D1 gespeichert und zwischen deinen Geräten synchronisiert.", verified: true }
@@ -184,6 +195,8 @@ export default {
     if (studyResponse) return studyResponse;
     const messagesResponse = await handleMessagesApi(request, env, headers, url);
     if (messagesResponse) return messagesResponse;
+    const plannerResponse = await handlePlannerApi(request, env, headers, url);
+    if (plannerResponse) return plannerResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
       const auth = await authenticate(request, env, headers);
       if (auth.response) return auth.response;
