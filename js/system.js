@@ -2,7 +2,7 @@
 // Ein Status gilt nur dann als erfolgreich, wenn er in diesem Durchlauf tatsächlich geprüft wurde.
 (function () {
   'use strict';
-  const BUILD = '0.7.0';
+  const BUILD = '0.8.0';
   const LAST_STATUS_KEY = 'jarvis_last_status_v1';
   const LAST_AI_OK_KEY = 'jarvis_last_ai_ok_v1';
   const CORE_LABELS = { idle: 'BEREIT', listening: 'ZUHÖREN', processing: 'VERARBEITE', speaking: 'SPRICHT', success: 'BESTÄTIGT', warning: 'HINWEIS', offline: 'OFFLINE', error: 'FEHLER' };
@@ -19,7 +19,7 @@
     frontend: 'Frontend', network: 'Internetverbindung', serviceWorker: 'PWA · Offline-Cache', localStore: 'Lokaler Speicher',
     speechInput: 'Spracheingabe', microphone: 'Mikrofon-Berechtigung', systemVoice: 'Systemstimme', backend: 'Backend (Cloudflare Worker)',
     auth: 'Zugang', ai: 'KI-Modell', tts: 'KI-Stimme', news: 'Nachrichtenrecherche', storage: 'Datenbank (D1)', tasks: 'Aufgaben-API',
-    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', costs: 'Kosten & Tageslimit', push: 'Benachrichtigungen', scheduler: 'Zeitplaner', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp/E-Mail)'
+    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', costs: 'Kosten & Tageslimit', push: 'Benachrichtigungen', scheduler: 'Zeitplaner', study: 'Lernassistent', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp/E-Mail)'
   };
   const ERROR_TEXT = {
     no_endpoint: 'Kein Backend eingetragen (Einstellungen → Stimme & KI).',
@@ -43,6 +43,15 @@
     invalid_time: 'Bitte eine gültige Uhrzeit wählen.',
     invalid_days: 'Bitte mindestens einen Wochentag wählen.',
     invalid_delay: 'Die Ankommensphase muss zwischen 0 und 240 Minuten liegen.',
+    study_material_required: 'Bitte ein PDF wählen oder Text einfügen.',
+    invalid_page_image: 'Eine Seite konnte nicht als Bild vorbereitet werden.',
+    too_many_pages: 'Zu viele Seiten auf einmal (höchstens 8 als Bild).',
+    model_refused: 'Das KI-Modell hat die Bearbeitung abgelehnt.',
+    invalid_model_output: 'Das KI-Modell hat eine unbrauchbare Antwort geliefert. Bitte erneut versuchen.',
+    empty_study_result: 'Aus den Unterlagen ließ sich kein Lernzettel erstellen. Ist das PDF lesbar?',
+    study_storage_unavailable: 'Der Speicher des Lernassistenten antwortet nicht (Migration 0005 angewendet?).',
+    study_set_not_found: 'Dieses Lernset gibt es nicht mehr.',
+    request_too_large: 'Die Unterlagen sind zu groß. Bitte weniger Seiten wählen.',
     unauthorized: 'Das Zugangstoken wird vom Backend abgelehnt.',
     backend_not_configured: 'Im Worker fehlen Secrets (JARVIS_ACCESS_TOKEN bzw. OPENAI_API_KEY).',
     storage_not_configured: 'Die D1-Datenbank ist noch nicht eingerichtet.',

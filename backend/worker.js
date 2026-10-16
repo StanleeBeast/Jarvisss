@@ -15,6 +15,7 @@ import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL } from "./age
 import { checkBudget, addUsage, handleUsageApi, getUsage, limits } from "./usage.js";
 import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
+import { handleStudyApi } from "./study.js";
 
 const TTS_VOICES = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"];
 const DEFAULT_TTS_VOICE = "coral";
@@ -57,6 +58,15 @@ async function storageStatus(env) {
     return { state: "error", detail: "Datenbankabfrage fehlgeschlagen." };
   }
 }
+async function studyStatus(env) {
+  if (!env.DB) return { state: "not_configured", detail: "Der Lernassistent benötigt D1." };
+  try {
+    const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM study_sets").first();
+    return { state: "available", detail: (row?.n ?? 0) + " Lernset(s). PDF-Import im Browser, Handschrift wird über Seitenbilder von der KI gelesen.", verified: true };
+  } catch {
+    return { state: "migration_missing", detail: "Tabellen für den Lernassistenten fehlen. Migration 0005 anwenden (Deploy-Workflow erneut ausführen)." };
+  }
+}
 async function costStatus(env) {
   if (!env.DB) return { state: "not_configured", detail: "Ohne D1 werden KI-Aufrufe nicht gezählt und es gibt kein Tageslimit im Worker. Setze ein Budget beim KI-Anbieter." };
   try {
@@ -90,6 +100,7 @@ async function systemStatus(env, principal) {
       tools: { state: "available", detail: availableTools(env).map(t => t.name).join(", "), verified: true },
       costs: await costStatus(env),
       ...(await schedulerStatus(env)),
+      study: await studyStatus(env),
       calendar: { state: "not_available", detail: "Kein Kalenderzugriff. Termine nur als .ics-Export; echter Zugriff braucht eine native App (EventKit)." },
       memory: access.devices.state === "available"
         ? { state: "available", detail: "Gedächtnis wird in D1 gespeichert und zwischen deinen Geräten synchronisiert.", verified: true }
@@ -168,6 +179,8 @@ export default {
     if (pushResponse) return pushResponse;
     const automationResponse = await handleAutomationApi(request, env, headers, url);
     if (automationResponse) return automationResponse;
+    const studyResponse = await handleStudyApi(request, env, headers, url);
+    if (studyResponse) return studyResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
       const auth = await authenticate(request, env, headers);
       if (auth.response) return auth.response;

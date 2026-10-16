@@ -1,8 +1,8 @@
 // JARVIS Service Worker: Netzwerk zuerst, Cache nur als Offline-Rückfall.
 // So erscheinen neue Deployments sofort, ohne dass vergessene Cache-Versionen alte Dateien festhalten.
 // API-Anfragen an das Backend (andere Origin) werden nie zwischengespeichert.
-const CACHE='jarvis-pwa-v13';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./js/auth.js','./js/system.js','./js/memory.js','./js/agent.js','./js/automation.js','./js/tasks.js','./js/shell.js'];
+const CACHE='jarvis-pwa-v14';
+const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./js/auth.js','./js/system.js','./js/memory.js','./js/agent.js','./js/automation.js','./js/study.js','./js/tasks.js','./js/shell.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('jarvis-pwa-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{

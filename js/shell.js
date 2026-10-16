@@ -6,6 +6,7 @@
   const TABS = [
     { id: 'system', label: 'System', view: 'view-system' },
     { id: 'tasks', label: 'Aufgaben', view: 'view-tasks' },
+    { id: 'study', label: 'Lernen', view: 'view-study' },
     { id: 'settings', label: 'Stimme & KI', view: 'view-settings' },
     { id: 'devices', label: 'Geräte', view: 'view-devices' },
     { id: 'automation', label: 'Automatisierungen', view: 'view-automation' },
@@ -61,6 +62,7 @@
     }
     if (tab.id === 'devices') window.JarvisAuth?.loadDevices();
     if (tab.id === 'automation') window.JarvisAutomation?.load();
+    if (tab.id === 'study') window.JarvisStudy?.load();
     if (tab.id === 'memory') window.JarvisMemory?.sync();
     if (tab.id === 'assistant') renderChat();
     if (tab.id === 'planner') renderEvents();
@@ -77,6 +79,7 @@
   activate(initial);
 
   el('n1Tasks')?.addEventListener('click', () => open('tasks'));
+  el('n1Study')?.addEventListener('click', () => open('study'));
   el('n1StateBtn')?.addEventListener('click', () => open('system'));
 
   // Bestehende Befehle („Termin …“, „Nachricht an …“) öffnen jetzt den passenden Bereich.
