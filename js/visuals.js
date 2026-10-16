@@ -332,6 +332,39 @@
       }
       ctx.globalAlpha = alpha; ctx.strokeStyle = 'rgba(255,179,71,0.5)'; ctx.lineWidth = 0.6; ctx.stroke(); ctx.globalAlpha = 1;
     }
+    // Punkte erscheinen als Welle vom Bildmittelpunkt aus und funkeln leicht.
+    function drawDots(arr, stride, view, step, alpha, ms, flagged) {
+      if (!arr || alpha <= 0.01) return;
+      const size = Math.max(1.1, Math.min(5.5, step * view.k * 0.42));
+      const maxR = Math.hypot(w, h) / 2;
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < arr.length; i += stride) {
+        const q = project(arr[i], arr[i + 1], view.lon, view.lat, view.k, view.cx, view.cy);
+        if (!q || q[0] < -10 || q[0] > w + 10 || q[1] < -10 || q[1] > h + 10) continue;
+        const home = flagged && arr[i + 2] === 1;
+        const dist = Math.hypot(q[0] - view.cx, q[1] - view.cy) / maxR;
+        const reveal = Math.min(1, Math.max(0, (ms - 150 - dist * 900) / 450));
+        if (reveal <= 0) continue;
+        const tw = 0.75 + 0.25 * Math.sin(ms / 260 + i * 0.37);
+        const a = alpha * reveal * tw * (flagged ? (home ? 0.95 : 0.35) : 0.75);
+        ctx.fillStyle = home ? 'rgba(255,205,120,' + a + ')' : flagged ? 'rgba(200,120,50,' + a + ')' : 'rgba(255,170,60,' + a + ')';
+        const sz = size * (home ? 1.1 : 0.9);
+        ctx.fillRect(q[0] - sz / 2, q[1] - sz / 2, sz, sz);
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    function sweep(home, ms, radius, alpha) {
+      // Radarstrahl um den Zielpunkt
+      const ang = (ms / 900) % (Math.PI * 2);
+      ctx.save(); ctx.globalAlpha = alpha; ctx.translate(home[0], home[1]);
+      for (let k = 0; k < 18; k++) {
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, radius, ang - (k + 1) * 0.035, ang - k * 0.035); ctx.closePath();
+        ctx.fillStyle = 'rgba(255,170,60,' + (0.16 * (1 - k / 18)) + ')'; ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(255,179,71,0.25)'; ctx.lineWidth = 1;
+      for (const f of [0.33, 0.66, 1]) { ctx.beginPath(); ctx.arc(0, 0, radius * f, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+    }
     const ease = (x) => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
     const lerp = (a, b, t) => a + (b - a) * t;
     const TOTAL = 7600;
@@ -356,11 +389,18 @@
         ctx.strokeStyle = 'rgba(255,179,71,' + 0.5 * globeAlpha + ')'; ctx.lineWidth = 1; ctx.stroke();
       }
       graticule(view, z < 4 ? 15 : z < 40 ? 5 : 1, z < 4 ? 0.25 : 0.15);
-      const intro = Math.min(1, ms / 600);
       if (geo) {
-        strokeLines(geo.world, view, '#ffb347', 0.9, intro * Math.max(0, 1 - (z - 4) / 6));
-        strokeLines(geo.region, view, '#ffc062', 1.1, Math.min(1, Math.max(0, (z - 3) / 4)) * Math.max(0.25, 1 - (z - 60) / 120));
-        strokeLines(geo.local, view, '#ffd38a', 1.6, Math.min(1, Math.max(0, (z - 25) / 30)));
+        // Stilisierte Punktkarte: echte Umrisse, dargestellt als leuchtende Wabenpunkte.
+        const wA = Math.max(0, 1 - (z - 3) / 4), rA = Math.min(1, Math.max(0, (z - 2.5) / 3)) * Math.max(0, 1 - (z - 70) / 60), lA = Math.min(1, Math.max(0, (z - 30) / 40));
+        drawDots(geo.dots.world, 2, view, 1.8 * D, wA, ms, false);
+        drawDots(geo.dots.region, 3, view, 0.32 * D, rA, ms, true);
+        drawDots(geo.dots.local, 3, view, 0.03 * D, lA, ms, true);
+        strokeLines(geo.lines.world, view, '#ffb347', 0.6, 0.18 * wA);
+        if (z > 4) {
+          ctx.setLineDash([6, 5]); ctx.lineDashOffset = -ms / 40;
+          strokeLines(geo.lines.de, view, '#ff4433', 1.2, Math.min(0.85, (z - 4) / 10));
+          ctx.setLineDash([]);
+        }
       }
       // Städte in der Nähe
       const townAlpha = Math.min(1, Math.max(0, (z - 120) / 80));
@@ -379,9 +419,12 @@
       const home = project(HOME.lon, HOME.lat, view.lon, view.lat, view.k, cx, cy);
       const lock = ease((ms - 4600) / 1300);
       if (home && ms > 2600) {
-        const pulse = (ms / 900) % 1;
-        ctx.strokeStyle = 'rgba(255,68,51,' + (0.7 * (1 - pulse)) + ')'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(home[0], home[1], 6 + pulse * 26, 0, Math.PI * 2); ctx.stroke();
+        if (z > 60) sweep(home, ms, Math.min(w, h) * 0.32, Math.min(1, (z - 60) / 60));
+        for (let r = 0; r < 3; r++) {
+          const pulse = ((ms / 1400) + r / 3) % 1;
+          ctx.strokeStyle = 'rgba(255,68,51,' + (0.7 * (1 - pulse)) + ')'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(home[0], home[1], 6 + pulse * Math.min(w, h) * 0.18, 0, Math.PI * 2); ctx.stroke();
+        }
         ctx.fillStyle = '#ff4433'; ctx.save(); ctx.translate(home[0], home[1]); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
         if (lock > 0) {
           const size = lerp(Math.max(w, h) * 0.5, 46, lock);
