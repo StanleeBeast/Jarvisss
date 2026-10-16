@@ -7,7 +7,7 @@ export const MEMORY_KINDS = ["preference", "fact", "style", "routine", "project"
 function memoryFromRow(row) {
   return { id: row.id, kind: row.kind, text: row.text, createdAt: row.created_at, updatedAt: row.updated_at };
 }
-function validateMemory(input, partial = false) {
+export function validateMemory(input, partial = false) {
   const allowed = new Set(["text", "kind"]);
   if (Object.keys(input).some(key => !allowed.has(key))) return { error: "unsupported_memory_field" };
   const out = {};

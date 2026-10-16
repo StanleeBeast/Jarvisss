@@ -1,6 +1,6 @@
 # J.A.R.V.I.S.S. – Bestandsaufnahme, Status und Fahrplan
 
-Stand: 16.10.2026 · Build 0.5.0 (Phase 0, 1 und 2b) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
+Stand: 16.10.2026 · Build 0.6.0 (Phase 0, 1, 2b und 3) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
 
 Diese Datei ist die verbindliche Übersicht darüber, was tatsächlich funktioniert. „Getestet“ heißt hier: durch automatisierte Tests oder einen echten Browserlauf geprüft. Ein Test auf deinem iPad und ein Test gegen echtes Cloudflare/OpenAI stehen jeweils separat aus und sind so gekennzeichnet.
 
@@ -54,7 +54,14 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 | Werkzeuge | ✅ | `get_current_time`, `get_news`, `list_tasks` (nur mit D1), `draft_task` (nur Entwurf). Keine verändernden Werkzeuge für das Modell. |
 | Grenzen | ✅ | Max. 4 Runden, max. 3 Werkzeugaufrufe pro Runde, Zeitlimit pro Werkzeug und pro Modellaufruf, Größenlimits. |
 | Lokaler Regelmodus ohne Backend | 🟡 | Uhrzeit, Wetter, Briefing, „Merk dir: …“, Planung öffnen. |
-| Mehrstufige Planung, Ergebnisprüfung, Abbruch | ⬜ | Phase 3. |
+| Vorschlag statt Ausführung | ✅ | `propose_task`, `propose_task_update`, `propose_memory` erzeugen nur Vorschläge. Die App zeigt eine Karte mit „Speichern“ und „Verwerfen“. Gespeichert wird erst nach dem Tipp, „gespeichert“ erscheint erst nach Bestätigung der Datenbank. Getestet: API (nichts gespeichert vor Bestätigung) und Browser. |
+| Zeitangaben | ✅ | Das Modell kennt Datum, Uhrzeit und Zeitzone. Der Server rechnet die lokale Zeit in UTC um, inklusive Sommerzeit (getestet: 25.10.2026), und gibt das Datum mit Wochentag zur Bestätigung zurück. Bei mehrdeutigen Uhrzeiten fragt JARVIS nach. |
+| Mehrstufige Planung | 🟡 | „Bereite meinen Tag vor“: Der Agent ruft Uhrzeit, Wetter, Aufgaben und Nachrichten selbst ab (bis zu 5 Runden, 4 Werkzeuge pro Runde). Mit echtem Modell noch nicht live getestet. |
+| Abbruch laufender Anfragen | ✅ | Knopf „Abbrechen“ in der Antwortkarte. Ein bereits laufender Serverschritt kann zu Ende laufen, gespeichert wird dabei nichts. |
+| Kostenlimits | ✅ | Tageslimits für KI-Anfragen, Tokens und Sprachausgabe (D1, Tag nach deutscher Zeit). Bei Überschreitung wird das Modell gar nicht erst aufgerufen. Anzeige unter System → Kosten & Nutzung. |
+| Berechtigungsübersicht | ✅ | System → Berechtigungen des Agenten: welches Werkzeug liest, welches nur vorschlägt, was der Agent nicht kann. |
+| Wetter als Werkzeug | ✅ | Open-Meteo, Ort über `WEATHER_LAT`/`WEATHER_LON`/`WEATHER_NAME` im Worker änderbar (Standard: Miltitz). |
+| Hörbare Erinnerung zur Uhrzeit | ⬜ | Eine fällige Aufgabe löst noch keinen Ton und keine Benachrichtigung aus. JARVIS sagt das ehrlich. Kommt in Phase 4 (Web-Push bzw. Kurzbefehle). |
 
 ### Sprache
 | Funktion | Status | Anmerkung |
@@ -109,7 +116,7 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 [Phase 9 Design]  parallel möglich
 ```
 
-Nächster sinnvoller Schritt: **Phase 3**: verändernde Werkzeuge mit Bestätigung (z. B. „Erinnere mich morgen um 6 an das Lernen“ → Aufgabenentwurf, den du mit einem Tipp bestätigst), serverseitiges Tageskostenlimit, Abbruch laufender Anfragen.
+Nächster sinnvoller Schritt: **Phase 4 (Automatisierungen)**: Morgenbriefing zur gewünschten Uhrzeit, Erinnerungen zu fälligen Aufgaben per Web-Push (iOS 16.4+ für Home-Bildschirm-Web-Apps), Cloudflare-Cron für serverseitige Zeitpläne und Apple-Kurzbefehle für „Ankunft zu Hause“ bzw. „Wecker stellen“.
 
 ---
 
@@ -166,7 +173,19 @@ Grenzen: Der Geräteschlüssel liegt im Browser-Speicher. Wer das entsperrte Ger
 | OpenAI TTS (`gpt-4o-mini-tts`) | KI-Stimme | dieselbe | nutzungsabhängig. Mit „Nur Systemstimme“ (Einstellungen) kostenlos. |
 | Google News RSS, Open-Meteo | Nachrichten, Wetter | – | kostenlos |
 
-Kostenkontrolle heute: Größen- und Rundenlimits im Worker, Zeitlimits. **Empfehlung:** Im OpenAI-Dashboard unter *Settings → Limits* ein monatliches Budget setzen. Ein serverseitiges Tageslimit ist für Phase 3 geplant.
+Kostenkontrolle heute:
+- Größen-, Runden- und Zeitlimits im Worker.
+- **Tageslimits** (ab Build 0.6.0, benötigen D1):
+
+| Worker-Variable | Standard | Wirkung |
+|---|---|---|
+| `DAILY_MAX_CHAT_REQUESTS` | 300 | KI-Anfragen pro Tag |
+| `DAILY_MAX_TOKENS` | 400.000 | Ein- und Ausgabe-Tokens pro Tag |
+| `DAILY_MAX_TTS_CHARS` | 150.000 | Zeichen Sprachausgabe pro Tag |
+
+Ändern: Cloudflare-Dashboard → Workers & Pages → jarvisss-ai → Settings → Variables and Secrets → Add (Typ „Text“). Die heutige Nutzung siehst du in JARVIS unter **System → Kosten & Nutzung**.
+
+**Zusätzlich empfohlen:** Im OpenAI-Dashboard unter *Settings → Limits* ein monatliches Budget setzen. Das ist die letzte Sicherung, falls etwas am Worker vorbeigeht.
 
 ---
 
@@ -174,9 +193,10 @@ Kostenkontrolle heute: Größen- und Rundenlimits im Worker, Zeitlimits. **Empfe
 
 | Test | Wo | Ergebnis |
 |---|---|---|
-| Backend: 41 Tests (Gerätesitzungen: Anmeldung, gefälschte/abgelaufene Schlüssel, Rotation, Wiederverwendungs-Sperre, Kopplung inkl. Fehlversuchs-Limit und Ablauf, Widerruf, Abmeldung, Protokoll ohne Inhalte; Gedächtnis: anlegen, auf zweitem Gerät lesen, bearbeiten, löschen mit Bestätigung; dazu Auth, CORS inkl. PATCH, Größenlimits, ungültiges JSON, fehlende Secrets, Aufgaben anlegen/abrufen/ändern/ungültig/404/Reihenfolge, D1 fehlt/kaputt/ohne Migration, Systemstatus, Agent mit mehreren Werkzeugaufrufen, Werkzeug ohne D1 verweigert, Schrittlimit, Modell 429/unerreichbar, TTS-Stimmen-Allow-List) | `backend/*.test.js`, CI | ✅ bestanden |
+| Backend: 52 Tests (Phase 3: Vorschläge speichern nichts vor Bestätigung, ungültige Zeiten werden zurückgemeldet, Änderungen nur an existierenden Aufgaben, ohne D1 nur Text-Entwürfe, Sommerzeit-Umstellung, Wetter, Tageslimits für Chat und Sprachausgabe, Werkzeugkatalog; dazu Gerätesitzungen: Anmeldung, gefälschte/abgelaufene Schlüssel, Rotation, Wiederverwendungs-Sperre, Kopplung inkl. Fehlversuchs-Limit und Ablauf, Widerruf, Abmeldung, Protokoll ohne Inhalte; Gedächtnis: anlegen, auf zweitem Gerät lesen, bearbeiten, löschen mit Bestätigung; dazu Auth, CORS inkl. PATCH, Größenlimits, ungültiges JSON, fehlende Secrets, Aufgaben anlegen/abrufen/ändern/ungültig/404/Reihenfolge, D1 fehlt/kaputt/ohne Migration, Systemstatus, Agent mit mehreren Werkzeugaufrufen, Werkzeug ohne D1 verweigert, Schrittlimit, Modell 429/unerreichbar, TTS-Stimmen-Allow-List) | `backend/*.test.js`, CI | ✅ bestanden |
 | Frontend statisch: Syntax aller Skripte, eindeutige IDs, alle referenzierten IDs vorhanden, Service-Worker-Dateien, Manifest, keine Schlüssel im Code | `tests/frontend.test.mjs`, CI | ✅ bestanden |
 | Browser-Ende-zu-Ende: echter Worker-Code + SQLite-D1 + simuliertes OpenAI, Chromium in iPad- und iPhone-Größe (38 Prüfungen: Status, Aufgaben, Tabs, Gedächtnis, Agent liest Aufgaben, Offline, Nachrichten-Refresh ohne Einfrieren, keine JS-Fehler, kein horizontales Scrollen) | lokal | ✅ bestanden (nicht in CI) |
+| Browser Phase 3 auf iPad und iPhone (28 Prüfungen): Vorschlagskarte, nichts gespeichert vor Bestätigung, Speichern mit Datenbank-Bestätigung, Verwerfen ändert nichts, Erinnerung vorschlagen und synchronisieren, Abbrechen, Kosten- und Berechtigungsanzeige, kein seitliches Scrollen | lokal | ✅ bestanden (nicht in CI) |
 | Browser mit zwei Geräten gleichzeitig (iPad + iPhone, 17 Prüfungen): automatische Umstellung auf Gerätesitzung, Admin-Token vom Gerät entfernt, Kopplung per Code, Gedächtnis und Aufgaben auf beiden Geräten, unbemerkte Sitzungserneuerung, Widerruf wirkt sofort, Protokoll | lokal | ✅ bestanden (nicht in CI) |
 | Echtes iPad / Safari / Installation | – | ⏳ ausstehend (du) |
 | Echtes Cloudflare + D1 + OpenAI | – | ⏳ ausstehend (nach Deployment) |
