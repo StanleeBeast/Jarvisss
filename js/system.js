@@ -2,7 +2,7 @@
 // Ein Status gilt nur dann als erfolgreich, wenn er in diesem Durchlauf tatsächlich geprüft wurde.
 (function () {
   'use strict';
-  const BUILD = '0.9.0';
+  const BUILD = '0.10.0';
   const LAST_STATUS_KEY = 'jarvis_last_status_v1';
   const LAST_AI_OK_KEY = 'jarvis_last_ai_ok_v1';
   const CORE_LABELS = { idle: 'BEREIT', listening: 'ZUHÖREN', processing: 'VERARBEITE', speaking: 'SPRICHT', success: 'BESTÄTIGT', warning: 'HINWEIS', offline: 'OFFLINE', error: 'FEHLER' };
@@ -19,7 +19,7 @@
     frontend: 'Frontend', network: 'Internetverbindung', serviceWorker: 'PWA · Offline-Cache', localStore: 'Lokaler Speicher',
     speechInput: 'Spracheingabe', microphone: 'Mikrofon-Berechtigung', systemVoice: 'Systemstimme', backend: 'Backend (Cloudflare Worker)',
     auth: 'Zugang', ai: 'KI-Modell', tts: 'KI-Stimme', news: 'Nachrichtenrecherche', storage: 'Datenbank (D1)', tasks: 'Aufgaben-API',
-    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', costs: 'Kosten & Tageslimit', push: 'Benachrichtigungen', scheduler: 'Zeitplaner', study: 'Lernassistent', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp/E-Mail)'
+    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', costs: 'Kosten & Tageslimit', push: 'Benachrichtigungen', scheduler: 'Zeitplaner', study: 'Lernassistent', planner: 'Tagesplaner', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp/E-Mail)'
   };
   const ERROR_TEXT = {
     no_endpoint: 'Kein Backend eingetragen (Einstellungen → Stimme & KI).',
@@ -55,6 +55,7 @@
     messages_required: 'Keine auswertbaren Nachrichten gefunden.',
     too_many_messages: 'Zu viele Nachrichten auf einmal (höchstens 400).',
     empty_message_result: 'Aus den Nachrichten ließ sich nichts auswerten.',
+    planner_storage_unavailable: 'Der Tagesplaner-Speicher antwortet nicht (Migration 0007 angewendet?).',
     message_storage_unavailable: 'Der Speicher für Nachrichten-Auswertungen antwortet nicht (Migration 0006 angewendet?).',
     message_import_not_found: 'Diese Auswertung gibt es nicht mehr.',
     unauthorized: 'Das Zugangstoken wird vom Backend abgelehnt.',

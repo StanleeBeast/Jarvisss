@@ -5,6 +5,7 @@
   const TAB_KEY = 'jarvis_settings_tab_v1';
   const TABS = [
     { id: 'system', label: 'System', view: 'view-system' },
+    { id: 'day', label: 'Tagesplan', view: 'view-day' },
     { id: 'tasks', label: 'Aufgaben', view: 'view-tasks' },
     { id: 'study', label: 'Lernen', view: 'view-study' },
     { id: 'messages', label: 'Nachrichten', view: 'view-messages' },
@@ -65,6 +66,7 @@
     if (tab.id === 'automation') window.JarvisAutomation?.load();
     if (tab.id === 'study') window.JarvisStudy?.load();
     if (tab.id === 'messages') window.JarvisMessages?.load();
+    if (tab.id === 'day') window.JarvisPlanner?.load({ prefs: true });
     if (tab.id === 'memory') window.JarvisMemory?.sync();
     if (tab.id === 'assistant') renderChat();
     if (tab.id === 'planner') renderEvents();
@@ -80,6 +82,7 @@
   try { initial = localStorage.getItem(TAB_KEY) || 'system'; } catch { /* optional */ }
   activate(initial);
 
+  window.JarvisShell = { open };
   el('n1Tasks')?.addEventListener('click', () => open('tasks'));
   el('n1Study')?.addEventListener('click', () => open('study'));
   el('n1StateBtn')?.addEventListener('click', () => open('system'));

@@ -43,6 +43,15 @@
     } else if (p.type === 'alarm') {
       lines.push(['Wecker', p.payload.time + ' Uhr (' + p.payload.label + ')']);
       lines.push(['Über', 'Kurzbefehl „JARVIS Wecker“ auf diesem Gerät']);
+    } else if (p.type === 'plan_change') {
+      const day = new Date(p.date + 'T12:00:00Z').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+      lines.push(['Tagesplan', day]);
+      for (const c of p.changes || []) {
+        if (c.action === 'skip') lines.push(['Fällt aus', c.title + ' (' + c.time + ')']);
+        if (c.action === 'restore') lines.push(['Wieder im Plan', c.title + ' (' + c.time + ')']);
+        if (c.action === 'add') lines.push(['Neu', c.title + ' (' + c.time + ')']);
+        if (c.action === 'free') lines.push(['Freizeit', (c.minutes > 0 ? '+' : '') + c.minutes + ' min']);
+      }
     } else if (p.type === 'save_memory') {
       lines.push(['Merken als ' + (KIND[p.payload.kind] || 'Erinnerung'), p.payload.text]);
     }
@@ -53,6 +62,7 @@
     if (p.type === 'create_task') return window.JarvisCore.api('/api/tasks', { method: 'POST', body: p.payload });
     if (p.type === 'update_task') return window.JarvisCore.api('/api/tasks/' + encodeURIComponent(p.target.id), { method: 'PATCH', body: p.payload });
     if (p.type === 'save_memory') return window.JarvisCore.api('/api/memories', { method: 'POST', body: p.payload });
+    if (p.type === 'plan_change') return window.JarvisCore.api('/api/planner/day/' + encodeURIComponent(p.date) + '/overrides', { method: 'PUT', body: p.payload });
     return { ok: false, error: 'unknown_proposal' };
   }
 
@@ -98,6 +108,7 @@
         ok.remove(); no.remove();
         window.JarvisCore.flash('success');
         if (p.type === 'save_memory') window.JarvisMemory?.sync();
+        window.JarvisPlanner?.refresh();
         if (p.type !== 'save_memory' && el('view-tasks')?.classList.contains('is-active')) window.JarvisTasks?.load();
       } else {
         c.dataset.state = 'error';
@@ -117,6 +128,7 @@
 
   function show(proposals) {
     box.replaceChildren(...proposals.slice(0, 5).map(card));
+    if (proposals.length) box.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
   }
 
   // --- Kosten und Berechtigungen im Bereich „System“ ----------------------------------------------
@@ -132,7 +144,7 @@
 
   const CATEGORY = { A: 'A · Lesen', B: 'B · Vorschlagen' };
   const TOOL_TEXT = {
-    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen',
+    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen',
     propose_task: 'Aufgabe vorschlagen', propose_task_update: 'Aufgabenänderung vorschlagen', propose_memory: 'Erinnerung vorschlagen', propose_alarm: 'Wecker über Kurzbefehl vorschlagen', draft_task: 'Text-Entwurf (ohne Datenbank)'
   };
   function meter(label, used, max) {
