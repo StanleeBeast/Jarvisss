@@ -1,5 +1,8 @@
-const CACHE='jarvis-pwa-v09';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+// JARVIS Service Worker: Netzwerk zuerst, Cache nur als Offline-Rückfall.
+// So erscheinen neue Deployments sofort, ohne dass vergessene Cache-Versionen alte Dateien festhalten.
+// API-Anfragen an das Backend (andere Origin) werden nie zwischengespeichert.
+const CACHE='jarvis-pwa-v10';
+const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./js/system.js','./js/tasks.js','./js/shell.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('jarvis-pwa-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
@@ -7,22 +10,15 @@ self.addEventListener('fetch',event=>{
  if(request.method!=='GET'||url.origin!==location.origin)return;
  event.respondWith((async()=>{
   const cache=await caches.open(CACHE);
-  const isPage=request.mode==='navigate'||url.pathname.endsWith('.html')||url.pathname.endsWith('/');
-  if(isPage){
-   try{
-    const fresh=await fetch(request);
-    if(fresh.ok&&fresh.type==='basic')await cache.put(request,fresh.clone());
-    return fresh;
-   }catch(error){
-    return (await cache.match(request))||(await cache.match('./index.html'))||Response.error();
-   }
-  }
-  const cached=await cache.match(request);
-  if(cached)return cached;
   try{
-   const response=await fetch(request);
-   if(response.ok&&response.type==='basic')await cache.put(request,response.clone());
-   return response;
-  }catch(error){throw error}
+   const fresh=await fetch(request,{cache:'no-cache'});
+   if(fresh.ok&&fresh.type==='basic')await cache.put(request,fresh.clone());
+   return fresh;
+  }catch(error){
+   const cached=await cache.match(request,{ignoreSearch:true});
+   if(cached)return cached;
+   if(request.mode==='navigate')return (await cache.match('./index.html'))||Response.error();
+   return Response.error();
+  }
  })())
 });

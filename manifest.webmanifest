@@ -1,12 +1,12 @@
 {
   "name": "J.A.R.V.I.S. Personal Assistant",
   "short_name": "JARVIS",
-  "description": "Persönlicher JARVIS-Prototyp mit lila Dashboard, Stimme, Planer und lokalem Gedächtnis.",
+  "description": "Persönlicher KI-Assistent J.A.R.V.I.S.S. mit Stimme, Aufgaben, Briefing und Systemstatus.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#080710",
-  "theme_color": "#090711",
+  "background_color": "#04070d",
+  "theme_color": "#04070d",
   "orientation": "any",
   "icons": [
     {
