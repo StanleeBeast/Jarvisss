@@ -26,7 +26,9 @@ npx wrangler d1 create jarvisss-db
    - optional `D1_DATABASE_NAME`, wenn die Datenbank nicht `jarvisss-db` heißt
 3. **Actions → Deploy JARVIS AI worker → Run workflow.**
 
-Der Workflow führt zuerst alle Tests aus. Dann ergänzt er die D1-Bindung nur für dieses Deployment in `wrangler.toml`, wendet `migrations/*.sql` remote an und deployt den Worker. Die Datei im Repository bleibt unverändert. Ohne die Variable wird wie bisher ohne Datenbank deployt.
+Der Workflow führt zuerst alle Tests aus. Dann ergänzt er die D1-Bindung nur für dieses Deployment in `wrangler.toml`, wendet alle Migrationen in `migrations/` remote an (bereits angewendete werden übersprungen) und deployt den Worker. Die Datei im Repository bleibt unverändert. Ohne die Variable wird wie bisher ohne Datenbank deployt.
+
+Migrationen: `0001_tasks.sql` (Aufgaben) und `0002_devices_memories.sql` (Gerätesitzungen, Kopplungscodes, Gedächtnis, Aktionsprotokoll).
 
 ### Alternative mit Computer und Wrangler-CLI
 

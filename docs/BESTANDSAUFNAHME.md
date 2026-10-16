@@ -1,6 +1,6 @@
 # J.A.R.V.I.S.S. – Bestandsaufnahme, Status und Fahrplan
 
-Stand: 16.10.2026 · Build 0.4.0 · Branch `claude/jarvisss-audit-stabilize-piq5ze`
+Stand: 16.10.2026 · Build 0.5.0 (Phase 0, 1 und 2b) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
 
 Diese Datei ist die verbindliche Übersicht darüber, was tatsächlich funktioniert. „Getestet“ heißt hier: durch automatisierte Tests oder einen echten Browserlauf geprüft. Ein Test auf deinem iPad und ein Test gegen echtes Cloudflare/OpenAI stehen jeweils separat aus und sind so gekennzeichnet.
 
@@ -68,9 +68,11 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 | Funktion | Status | Anmerkung |
 |---|---|---|
 | Aufgaben in D1 (anlegen, lesen, erledigen, verwerfen, wieder öffnen) | ✅ | 11 API-Tests gegen echtes SQLite mit der echten Migration, plus Browsertest. **Läuft bei dir erst nach der D1-Einrichtung (Abschnitt 4).** |
-| Profil, Erinnerungen, Feedback | 🟡 | Funktioniert, aber **nur lokal im Browser**. Keine Synchronisation. |
-| Projekt-, Routine-, Präferenzgedächtnis in D1 | ⬜ | Phase 2b. |
-| Geräteübergreifende Synchronisation | ⬜ | Hängt an der Authentifizierung (Abschnitt 5). |
+| Gedächtnis (Erinnerungen, Stilhinweise) in D1 | ✅ | Anlegen, Lesen auf einem anderen Gerät, Bearbeiten, Löschen (mit Bestätigung) getestet (API + 2-Geräte-Browsertest). Vorher nur lokal gespeicherte Einträge werden **erst nach deiner ausdrücklichen Zustimmung** hochgeladen. Ohne D1 bleibt alles lokal. |
+| Gerätesitzungen statt gemeinsamem Token | ✅ | Eigener, rotierender Schlüssel pro Gerät, 15-Minuten-Zugangsschlüssel, Kopplung per Einmal-Code, Widerruf und Abmeldung, Sperre bei Wiederverwendung eines alten Schlüssels. Siehe Abschnitt 5. |
+| Aktionsprotokoll | ✅ | Anmeldungen, Kopplungen, Widerrufe, Aufgaben- und Gedächtnisänderungen, **ohne Inhalte**. Sichtbar unter Einstellungen → Geräte. |
+| Profil, Stimme, Design | 🟡 | Weiterhin **nur lokal** im Browser. |
+| Routinen, Projekte als eigene Strukturen | ⬜ | Gedächtnisarten `routine` und `project` existieren, eigene Ansichten mit Zeiten und Status folgen (Phase 2c/8). |
 
 ### Integrationen
 | Funktion | Status | Anmerkung |
@@ -94,7 +96,7 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
         │
 [Phase 2a Aufgaben]  ✅ Code fertig, wartet auf D1
         │
-[Auth: Gerätesitzungen] ──► [Phase 2b: Gedächtnis/Präferenzen/Routinen/Projekte in D1 + Sync]
+[Phase 2b: Gerätesitzungen + Gedächtnis-Sync] ✅ erledigt ──► [Phase 2c: Routinen/Projekte/Präferenzen strukturiert]
         │                              │
         ▼                              ▼
 [Phase 3 Agent: verändernde Werkzeuge mit Bestätigung, Planung, Abbruch, Kostenlimit pro Tag]
@@ -107,7 +109,7 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 [Phase 9 Design]  parallel möglich
 ```
 
-Nächster sinnvoller Schritt nach dem Merge: **Gerätesitzungen statt eines gemeinsamen Dauertokens** (Abschnitt 5). Erst danach sollte persönliches Gedächtnis auf den Server wandern.
+Nächster sinnvoller Schritt: **Phase 3**: verändernde Werkzeuge mit Bestätigung (z. B. „Erinnere mich morgen um 6 an das Lernen“ → Aufgabenentwurf, den du mit einem Tipp bestätigst), serverseitiges Tageskostenlimit, Abbruch laufender Anfragen.
 
 ---
 
@@ -136,19 +138,22 @@ Nächster sinnvoller Schritt nach dem Merge: **Gerätesitzungen statt eines geme
 
 ---
 
-## 5. Authentifizierung – Plan (noch nicht umgesetzt)
+## 5. Authentifizierung (umgesetzt in Build 0.5.0)
 
-Heute gibt es ein gemeinsames Dauertoken (`JARVIS_ACCESS_TOKEN`), das jedes Gerät im `localStorage` speichert. Das ist für eine private Einzelperson-Instanz vertretbar, aber nicht das Ziel.
+| Schlüssel | Lebensdauer | Wo gespeichert | Zweck |
+|---|---|---|---|
+| Admin-Schlüssel `JARVIS_ACCESS_TOKEN` | dauerhaft | GitHub-/Cloudflare-Secret; auf dem Gerät nur bis zur Anmeldung | Ersteinrichtung, Notfallzugang |
+| Geräteschlüssel | 30 Tage, verlängert sich bei Nutzung, **rotiert bei jeder Erneuerung** | `localStorage` des Geräts; auf dem Server nur als SHA-256-Hash | Erneuerung des Zugangsschlüssels |
+| Zugangsschlüssel | 15 Minuten | nur im Arbeitsspeicher | jede API-Anfrage |
+| Kopplungscode | 10 Minuten, einmalig, max. 5 Fehlversuche | auf dem Server nur als Hash | neues Gerät ohne Admin-Schlüssel anmelden |
 
-Geplant (Phase 2b):
-1. **Kopplungscode statt Dauertoken**: Ein bereits angemeldetes Gerät erzeugt einen einmaligen, 10 Minuten gültigen Code. Das neue Gerät tauscht ihn gegen eine eigene Sitzung.
-2. **Gerätesitzungen in D1** (`devices`, `sessions`): Gespeichert wird nur der Hash des Tokens, dazu Gerätename, Erstellzeit, letzte Nutzung und Ablaufdatum.
-3. **Kurzlebige Zugriffstokens** (z. B. 1 Stunde) plus erneuerbares Geräte-Token (z. B. 30 Tage, rotierend).
-4. Geräteliste in den Einstellungen mit **Abmelden/Widerrufen** einzelner Geräte.
-5. `JARVIS_ACCESS_TOKEN` bleibt nur als Notfall-/Admin-Schlüssel für die Erstkopplung.
-6. Optional später: Passkeys (WebAuthn), da Safari sie gut unterstützt.
+Ablauf:
+1. Erstes Gerät: Backend-URL und Admin-Schlüssel eintragen. Ist D1 eingerichtet, tauscht JARVIS den Admin-Schlüssel **automatisch** gegen eine Gerätesitzung und entfernt ihn vom Gerät.
+2. Weitere Geräte: Auf einem angemeldeten Gerät unter **Einstellungen → Geräte → Kopplungscode erzeugen**. Auf dem neuen Gerät unter **Geräte → Mit Code anmelden** URL und Code eingeben.
+3. Verlorenes Gerät: Unter **Geräte → Widerrufen**. Das wirkt sofort, weil der Server bei jeder Anfrage prüft, ob das Gerät noch aktiv ist.
+4. Wird ein bereits ersetzter Geräteschlüssel später erneut benutzt (z. B. eine gestohlene Kopie), sperrt der Server das Gerät automatisch.
 
----
+Grenzen: Der Geräteschlüssel liegt im Browser-Speicher. Wer das entsperrte Gerät in der Hand hat, kann JARVIS nutzen. Schutz bieten die Gerätesperre (Face ID/Code) und der Widerruf. Passkeys (WebAuthn) sind als spätere Verbesserung möglich. Der Admin-Schlüssel funktioniert weiterhin. Bewahre ihn wie ein Passwort auf (z. B. im iCloud-Schlüsselbund) und tausche ihn aus, falls er bekannt wird: neues GitHub-Secret setzen und den Deploy-Workflow ausführen. Ein neuer Admin-Schlüssel macht auch alle Zugangsschlüssel ungültig, die Geräte erneuern sich dann über ihren Geräteschlüssel.
 
 ## 6. Kosten und externe Dienste
 
@@ -169,9 +174,10 @@ Kostenkontrolle heute: Größen- und Rundenlimits im Worker, Zeitlimits. **Empfe
 
 | Test | Wo | Ergebnis |
 |---|---|---|
-| Backend: 28 Tests (Auth, CORS inkl. PATCH, Größenlimits, ungültiges JSON, fehlende Secrets, Aufgaben anlegen/abrufen/ändern/ungültig/404/Reihenfolge, D1 fehlt/kaputt/ohne Migration, Systemstatus, Agent mit mehreren Werkzeugaufrufen, Werkzeug ohne D1 verweigert, Schrittlimit, Modell 429/unerreichbar, TTS-Stimmen-Allow-List) | `backend/*.test.js`, CI | ✅ bestanden |
+| Backend: 41 Tests (Gerätesitzungen: Anmeldung, gefälschte/abgelaufene Schlüssel, Rotation, Wiederverwendungs-Sperre, Kopplung inkl. Fehlversuchs-Limit und Ablauf, Widerruf, Abmeldung, Protokoll ohne Inhalte; Gedächtnis: anlegen, auf zweitem Gerät lesen, bearbeiten, löschen mit Bestätigung; dazu Auth, CORS inkl. PATCH, Größenlimits, ungültiges JSON, fehlende Secrets, Aufgaben anlegen/abrufen/ändern/ungültig/404/Reihenfolge, D1 fehlt/kaputt/ohne Migration, Systemstatus, Agent mit mehreren Werkzeugaufrufen, Werkzeug ohne D1 verweigert, Schrittlimit, Modell 429/unerreichbar, TTS-Stimmen-Allow-List) | `backend/*.test.js`, CI | ✅ bestanden |
 | Frontend statisch: Syntax aller Skripte, eindeutige IDs, alle referenzierten IDs vorhanden, Service-Worker-Dateien, Manifest, keine Schlüssel im Code | `tests/frontend.test.mjs`, CI | ✅ bestanden |
 | Browser-Ende-zu-Ende: echter Worker-Code + SQLite-D1 + simuliertes OpenAI, Chromium in iPad- und iPhone-Größe (38 Prüfungen: Status, Aufgaben, Tabs, Gedächtnis, Agent liest Aufgaben, Offline, Nachrichten-Refresh ohne Einfrieren, keine JS-Fehler, kein horizontales Scrollen) | lokal | ✅ bestanden (nicht in CI) |
+| Browser mit zwei Geräten gleichzeitig (iPad + iPhone, 17 Prüfungen): automatische Umstellung auf Gerätesitzung, Admin-Token vom Gerät entfernt, Kopplung per Code, Gedächtnis und Aufgaben auf beiden Geräten, unbemerkte Sitzungserneuerung, Widerruf wirkt sofort, Protokoll | lokal | ✅ bestanden (nicht in CI) |
 | Echtes iPad / Safari / Installation | – | ⏳ ausstehend (du) |
 | Echtes Cloudflare + D1 + OpenAI | – | ⏳ ausstehend (nach Deployment) |
 | Zeitumstellung, doppelte Zeitpläne | – | ⏳ ab Phase 4 (es gibt noch keine Zeitpläne) |

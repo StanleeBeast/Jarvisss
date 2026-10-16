@@ -2,7 +2,7 @@
 // Ein Status gilt nur dann als erfolgreich, wenn er in diesem Durchlauf tatsächlich geprüft wurde.
 (function () {
   'use strict';
-  const BUILD = '0.4.0';
+  const BUILD = '0.5.0';
   const LAST_STATUS_KEY = 'jarvis_last_status_v1';
   const LAST_AI_OK_KEY = 'jarvis_last_ai_ok_v1';
   const CORE_LABELS = { idle: 'BEREIT', listening: 'ZUHÖREN', processing: 'VERARBEITE', speaking: 'SPRICHT', success: 'BESTÄTIGT', warning: 'HINWEIS', offline: 'OFFLINE', error: 'FEHLER' };
@@ -19,11 +19,17 @@
     frontend: 'Frontend', network: 'Internetverbindung', serviceWorker: 'PWA · Offline-Cache', localStore: 'Lokaler Speicher',
     speechInput: 'Spracheingabe', microphone: 'Mikrofon-Berechtigung', systemVoice: 'Systemstimme', backend: 'Backend (Cloudflare Worker)',
     auth: 'Zugang', ai: 'KI-Modell', tts: 'KI-Stimme', news: 'Nachrichtenrecherche', storage: 'Datenbank (D1)', tasks: 'Aufgaben-API',
-    tools: 'Agenten-Werkzeuge', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp/E-Mail)'
+    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp/E-Mail)'
   };
   const ERROR_TEXT = {
     no_endpoint: 'Kein Backend eingetragen (Einstellungen → Stimme & KI).',
     no_token: 'Zugangstoken fehlt.',
+    session_refresh_failed: 'Die Gerätesitzung konnte nicht erneuert werden (offline oder Backend nicht erreichbar).',
+    device_revoked: 'Dieses Gerät wurde abgemeldet. Unter „Geräte“ neu anmelden oder koppeln.',
+    token_expired: 'Der Sitzungsschlüssel ist abgelaufen.',
+    admin_token_required: 'Dafür wird der Admin-Schlüssel benötigt.',
+    invalid_pairing_code: 'Der Kopplungscode ist falsch, abgelaufen oder schon benutzt.',
+    memory_storage_unavailable: 'Der Gedächtnisspeicher antwortet gerade nicht.',
     unauthorized: 'Das Zugangstoken wird vom Backend abgelehnt.',
     backend_not_configured: 'Im Worker fehlen Secrets (JARVIS_ACCESS_TOKEN bzw. OPENAI_API_KEY).',
     storage_not_configured: 'Die D1-Datenbank ist noch nicht eingerichtet.',
@@ -45,11 +51,21 @@
   const errorText = (code) => ERROR_TEXT[code] || ('Fehler: ' + code);
   const fmtTime = (iso) => { const d = iso ? new Date(iso) : null; return d && !Number.isNaN(d.valueOf()) ? d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '—'; };
 
-  async function api(path, { method = 'GET', body, timeout = 12000, auth = true } = {}) {
+  async function api(path, options = {}) {
+    const res = await request(path, options);
+    // Ein abgelaufener 15-Minuten-Schlüssel wird einmal erneuert, dann wird die Anfrage wiederholt.
+    if (res.error === 'token_expired' && window.JarvisAuth?.hasSession()) {
+      window.JarvisAuth.invalidate();
+      return request(path, options);
+    }
+    if (res.error === 'device_revoked') window.JarvisAuth?.handleRevoked();
+    return res;
+  }
+  async function request(path, { method = 'GET', body, timeout = 12000, auth = true } = {}) {
     const base = apiBase();
     if (!base) return { ok: false, status: 0, error: 'no_endpoint' };
-    const token = getAIAccessToken();
-    if (auth && !token) return { ok: false, status: 0, error: 'no_token' };
+    const token = auth ? await authToken() : '';
+    if (auth && !token) return { ok: false, status: 0, error: hasCredentials() ? 'session_refresh_failed' : 'no_token' };
     const headers = { Accept: 'application/json' };
     if (auth) headers.Authorization = 'Bearer ' + token;
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -181,6 +197,7 @@
       }));
       render();
       applyCore();
+      if (server?.devices?.state === 'available' && !window.JarvisAuth?.hasSession() && getAIAccessToken()) window.JarvisAuth?.upgrade();
       return lastStatus;
     })();
     try { return await checking; } finally { checking = null; }

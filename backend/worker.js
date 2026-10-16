@@ -3,6 +3,10 @@
 // kontrollierte Werkzeuge, Nachrichten, Sprachausgabe, Aufgaben (D1) und Systemstatus.
 // Alle geheimen Schlüssel liegen ausschließlich als Worker-Secrets vor.
 
+import { json, clip, readJsonBody, audit } from "./http.js";
+import { authenticate, actorOf, handleAuthApi, authStatus } from "./auth.js";
+import { handleMemoriesApi } from "./memories.js";
+
 const MAX_BODY_BYTES = 48_000;
 const MAX_MESSAGES = 16;
 const MAX_TEXT = 8_000;
@@ -24,7 +28,7 @@ function allowedOrigins(env) {
 function corsHeaders(origin, env) {
   const headers = {
     "Vary": "Origin",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
     "Content-Type": "application/json; charset=utf-8",
@@ -32,47 +36,6 @@ function corsHeaders(origin, env) {
   };
   if (origin && allowedOrigins(env).includes(origin)) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
-}
-function json(data, status, headers) {
-  return new Response(JSON.stringify(data), { status, headers });
-}
-async function sameSecret(a, b) {
-  if (!a || !b) return false;
-  const enc = new TextEncoder();
-  const [ha, hb] = await Promise.all([
-    crypto.subtle.digest("SHA-256", enc.encode(a)),
-    crypto.subtle.digest("SHA-256", enc.encode(b))
-  ]);
-  const aa = new Uint8Array(ha), bb = new Uint8Array(hb);
-  let diff = 0;
-  for (let i = 0; i < aa.length; i++) diff |= aa[i] ^ bb[i];
-  return diff === 0;
-}
-// Prüft das gemeinsame Zugangstoken. Gibt eine fertige Fehlerantwort zurück oder null, wenn alles passt.
-async function requireAuth(request, env, headers, { needsModel = false } = {}) {
-  if (!env.JARVIS_ACCESS_TOKEN || (needsModel && !env.OPENAI_API_KEY)) {
-    return json({ error: "backend_not_configured" }, 503, headers);
-  }
-  const auth = request.headers.get("Authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!(await sameSecret(token, env.JARVIS_ACCESS_TOKEN))) return json({ error: "unauthorized" }, 401, headers);
-  return null;
-}
-async function readJsonBody(request, maxBytes = 12_000) {
-  const declaredLength = Number(request.headers.get("Content-Length") || 0);
-  if (declaredLength > maxBytes) return { error: "request_too_large", status: 413 };
-  try {
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).length > maxBytes) return { error: "request_too_large", status: 413 };
-    const value = JSON.parse(raw);
-    if (!value || typeof value !== "object" || Array.isArray(value)) return { error: "invalid_payload", status: 400 };
-    return { value };
-  } catch {
-    return { error: "invalid_json", status: 400 };
-  }
-}
-function clip(value, max = MAX_TEXT) {
-  return typeof value === "string" ? value.slice(0, max) : "";
 }
 function isTimeout(error) {
   return error?.name === "TimeoutError" || error?.name === "AbortError";
@@ -212,8 +175,9 @@ async function handleTasksApi(request, env, headers, url) {
   if (!["GET", "POST", "PATCH"].includes(request.method)) {
     return json({ error: "method_not_allowed" }, 405, headers);
   }
-  const denied = await requireAuth(request, env, headers);
-  if (denied) return denied;
+  const auth = await authenticate(request, env, headers);
+  if (auth.response) return auth.response;
+  const actor = actorOf(auth.principal);
   if (!env.DB) {
     return json({
       error: "storage_not_configured",
@@ -244,6 +208,7 @@ async function handleTasksApi(request, env, headers, url) {
       // Erfolg wird erst gemeldet, wenn die Datenbank den Datensatz tatsächlich zurückliefert.
       const saved = await env.DB.prepare("SELECT * FROM tasks WHERE id = ?").bind(taskId).first();
       if (!saved) return json({ error: "task_save_unconfirmed" }, 500, headers);
+      await audit(env.DB, actor, "task_created", taskId);
       return json({ task: taskFromRow(saved), saved: true }, 201, headers);
     }
 
@@ -262,6 +227,7 @@ async function handleTasksApi(request, env, headers, url) {
       ).bind(task.title, task.details, task.dueAt, task.priority, task.status, now, completedAt, id).run();
       const saved = await env.DB.prepare("SELECT * FROM tasks WHERE id = ?").bind(id).first();
       if (!saved) return json({ error: "task_update_unconfirmed" }, 500, headers);
+      await audit(env.DB, actor, "task_updated", id);
       return json({ task: taskFromRow(saved), saved: true }, 200, headers);
     }
     return json({ error: "method_not_allowed" }, 405, headers);
@@ -427,14 +393,16 @@ async function storageStatus(env) {
     return { state: "error", detail: "Datenbankabfrage fehlgeschlagen." };
   }
 }
-async function systemStatus(env) {
+async function systemStatus(env, principal) {
   const storage = await storageStatus(env);
+  const access = await authStatus(env, principal);
   const hasModelKey = Boolean(env.OPENAI_API_KEY);
   return {
     checkedAt: new Date().toISOString(),
     components: {
       backend: { state: "available", detail: "Worker antwortet.", verified: true },
-      auth: { state: "available", detail: "Zugangstoken gültig (gemeinsames Token, keine Gerätesitzungen).", verified: true },
+      auth: access.auth,
+      devices: access.devices,
       ai: hasModelKey
         ? { state: "configured", detail: "API-Schlüssel hinterlegt. Ob das Modell antwortet, zeigt erst eine echte Anfrage.", model: env.OPENAI_MODEL || DEFAULT_MODEL, verified: false }
         : { state: "not_configured", detail: "OPENAI_API_KEY fehlt." },
@@ -449,7 +417,12 @@ async function systemStatus(env) {
       tools: { state: "available", detail: availableTools(env).map(t => t.name).join(", "), verified: true },
       calendar: { state: "not_available", detail: "Kein Kalenderzugriff. Termine nur als .ics-Export; echter Zugriff braucht eine native App (EventKit)." },
       automations: { state: "in_development", detail: "Keine serverseitigen Zeitpläne aktiv." },
-      sync: { state: "not_available", detail: "Profil, Gedächtnis und Design liegen nur lokal im Browser." },
+      memory: access.devices.state === "available"
+        ? { state: "available", detail: "Gedächtnis wird in D1 gespeichert und zwischen deinen Geräten synchronisiert.", verified: true }
+        : { state: access.devices.state, detail: "Ohne D1 (inkl. Migration 0002) bleibt das Gedächtnis lokal im Browser." },
+      sync: access.devices.state === "available"
+        ? { state: "available", detail: "Aufgaben und Gedächtnis: geräteübergreifend. Profil, Stimme und Design: weiterhin nur lokal.", verified: true }
+        : { state: "not_available", detail: "Profil, Gedächtnis und Design liegen nur lokal im Browser." },
       messaging: { state: "manual_only", detail: "WhatsApp/E-Mail nur als vorbereiteter Entwurf, Versand durch dich." }
     }
   };
@@ -460,8 +433,8 @@ async function systemStatus(env) {
 // ---------------------------------------------------------------------------
 
 async function handleTts(request, env, headers) {
-  const denied = await requireAuth(request, env, headers, { needsModel: true });
-  if (denied) return denied;
+  const auth = await authenticate(request, env, headers, { needsModel: true });
+  if (auth.response) return auth.response;
   const body = await readJsonBody(request, 12_000);
   if (body.error) return json({ error: body.error }, body.status, headers);
   const input = clip(body.value.text, 4000).trim();
@@ -489,8 +462,8 @@ async function handleTts(request, env, headers) {
   }
 }
 async function handleChat(request, env, headers) {
-  const denied = await requireAuth(request, env, headers, { needsModel: true });
-  if (denied) return denied;
+  const auth = await authenticate(request, env, headers, { needsModel: true });
+  if (auth.response) return auth.response;
   const body = await readJsonBody(request, MAX_BODY_BYTES);
   if (body.error) return json({ error: body.error }, body.status, headers);
   const payload = body.value;
@@ -519,15 +492,19 @@ export default {
       return json({ status: "ok", service: "jarvisss-ai-proxy", configured: Boolean(env.OPENAI_API_KEY && env.JARVIS_ACCESS_TOKEN) }, 200, headers);
     }
     if (request.method === "GET" && url.pathname === "/api/status") {
-      const denied = await requireAuth(request, env, headers);
-      if (denied) return denied;
-      return json(await systemStatus(env), 200, headers);
+      const auth = await authenticate(request, env, headers);
+      if (auth.response) return auth.response;
+      return json(await systemStatus(env, auth.principal), 200, headers);
     }
+    const authResponse = await handleAuthApi(request, env, headers, url);
+    if (authResponse) return authResponse;
     const taskResponse = await handleTasksApi(request, env, headers, url);
     if (taskResponse) return taskResponse;
+    const memoryResponse = await handleMemoriesApi(request, env, headers, url);
+    if (memoryResponse) return memoryResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
-      const denied = await requireAuth(request, env, headers);
-      if (denied) return denied;
+      const auth = await authenticate(request, env, headers);
+      if (auth.response) return auth.response;
       try {
         const result = await getNews(url.searchParams.get("section") || "local");
         return json(result, result.error ? 400 : 200, headers);

@@ -7,6 +7,7 @@
     { id: 'system', label: 'System', view: 'view-system' },
     { id: 'tasks', label: 'Aufgaben', view: 'view-tasks' },
     { id: 'settings', label: 'Stimme & KI', view: 'view-settings' },
+    { id: 'devices', label: 'Geräte', view: 'view-devices' },
     { id: 'memory', label: 'Gedächtnis', view: 'view-memory' },
     { id: 'planner', label: 'Planung & Entwürfe', view: 'view-planner' },
     { id: 'design', label: 'Design', view: 'view-design' },
@@ -56,6 +57,8 @@
       const last = window.JarvisCore?.lastStatus;
       if (!last || Date.now() - new Date(last.checkedAt).getTime() > 60_000) window.JarvisCore?.checkSystem();
     }
+    if (tab.id === 'devices') window.JarvisAuth?.loadDevices();
+    if (tab.id === 'memory') window.JarvisMemory?.sync();
     if (tab.id === 'assistant') renderChat();
     if (tab.id === 'planner') renderEvents();
   }

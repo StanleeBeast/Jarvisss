@@ -84,10 +84,10 @@
 
   async function load() {
     if (busy) return;
-    if (!apiBase() || !getAIAccessToken()) {
+    if (!apiBase() || !hasCredentials()) {
       el('taskList').replaceChildren();
       el('taskCount').textContent = '–';
-      setState('Kein Backend verbunden. Trage Worker-URL und Zugangstoken unter „Stimme & KI“ ein.', 'warn');
+      setState('Nicht verbunden. Trage unter „Stimme & KI“ Backend und Token ein oder koppele dieses Gerät unter „Geräte“ mit einem Code.', 'warn');
       return;
     }
     setBusy(true);
