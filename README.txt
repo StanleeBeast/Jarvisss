@@ -1,4 +1,6 @@
-# J.A.R.V.I.S.S.S. für iPad — statische PWA
+# J.A.R.V.I.S.S. für iPad — PWA mit Cloudflare-Backend
+
+**Aktueller, geprüfter Funktionsstatus, Fahrplan und alle manuellen Schritte: [`docs/BESTANDSAUFNAHME.md`](docs/BESTANDSAUFNAHME.md).** In der App zeigt **Einstellungen → System** den live geprüften Zustand.
 
 ## Aktueller Stand
 Das Repository enthält eine statische Progressive Web App. Sie kann über HTTPS auf GitHub Pages bereitgestellt und auf einem iPad über Safari zum Home-Bildschirm hinzugefügt werden.
@@ -13,6 +15,9 @@ Das Repository enthält eine statische Progressive Web App. Sie kann über HTTPS
 - WhatsApp-Text und E-Mail-Entwurf zur manuellen Prüfung vorbereiten
 - Designstudio mit Presets, Akzentfarbe, Glow-Intensität, Animationseinstellung und gespeicherten Designs
 - Optionaler KI-Backend-Endpunkt; JSON-Antwort erwartet `reply` und optional `model`
+- Kontrollzentrum (Einstellungen) mit Systemstatus, Aufgaben, Stimme & KI, Gedächtnis, Planung, Design und Verlauf
+- Dauerhafte Aufgaben in Cloudflare D1 (`/api/tasks`), sobald die Datenbank eingerichtet ist (`backend/SETUP_TASKS.md`)
+- Echter Systemstatus (`/api/status`) und ORB-Zustände, die nur aus echten Ereignissen entstehen
 
 ## Einrichtung einer echten KI
 Die Website ist statisch und kann selbst keine geheimen Schlüssel schützen. In „Designstudio“ oder „Einstellungen“ eine eigene HTTPS-Backend-URL eintragen. Das Backend muss:
@@ -34,7 +39,7 @@ Erwartete Anfragefelder: `messages`, `profile`, `memories`, `feedback`, `timezon
 ## Grenzen, die weiterhin gelten
 - Ohne Backend-URL ist die Unterhaltung weiterhin regelbasiert.
 - KI-Anfragen funktionieren erst, wenn Backend, Modell, Authentifizierung und CORS korrekt eingerichtet sind.
-- Langzeitgedächtnis liegt derzeit nur im lokalen Browser-Speicher. Keine geräteübergreifende Synchronisierung und keine verschlüsselte Serverdatenbank.
+- Profil, Erinnerungen, Feedback und Design liegen nur im lokalen Browser-Speicher. Aufgaben liegen in D1 (nach Einrichtung). Noch keine Synchronisierung des Gedächtnisses.
 - Kein dauerhaftes Wake Word bei geschlossener App und keine verlässlichen Hintergrundalarme.
 - Spotify wird nur geöffnet; direkte Spotify-Web-API-Steuerung ist nicht enthalten.
 - Nachrichtenversand und Kalenderübertragung benötigen weiterhin deine manuelle Prüfung bzw. Bestätigung.
@@ -68,11 +73,12 @@ Im Ordner `backend/` liegt ein Cloudflare Worker als Vermittlung zwischen der PW
 - Anfragegröße, Anzahl der Nachrichten, Textlänge und Antwortlänge sind begrenzt; upstream-Fehler werden ohne vertrauliche Antwortdetails gemeldet. Ein robustes, globales Rate-Limit ist noch nicht eingerichtet; Token vertraulich halten und Nutzungs-/Kostenlimits beim Anbieter setzen.
 - Für öffentliche oder mehrere Nutzer braucht es zusätzlich robuste Rate Limits, Nutzerkonten und gegebenenfalls eine Datenbank. Dieser Worker ist für eine private Einzelperson-Instanz gedacht, nicht als offener öffentlicher Dienst.
 - Das Backend speichert keine Gespräche. Profil und Erinnerungen werden für die jeweilige Anfrage vom Browser mitgeschickt.
-- Es wurde hier kein Cloudflare-Account verbunden, kein API-Key eingerichtet und kein Worker deployed. Die Dateien sind vorbereitet; erst nach diesen manuellen Schritten funktioniert die echte Modellanbindung.
+- Ob der Worker deployed und richtig eingerichtet ist, zeigt JARVIS unter **Einstellungen → System**. Der Deploy-Workflow führt vor jedem Deployment die Tests aus.
 
 
 ## Automatisierte Backend-Tests
 
-- Im Ordner `backend/` liegt eine Node.js-Test-Suite für Authentifizierung, CORS, fehlende Secrets, ungültiges JSON und eine simulierte Modellantwort.
+- Im Ordner `backend/` liegt eine Node.js-Test-Suite (28 Tests) für Authentifizierung, CORS, Größenlimits, Aufgaben-API gegen echtes SQLite, Systemstatus, Agentenschleife und Werkzeuge sowie TTS.
+- `tests/frontend.test.mjs` prüft das Frontend statisch (Syntax, IDs, Service-Worker-Dateien, keine Schlüssel).
 - GitHub Actions führt diese Tests bei Pushes und Pull Requests auf `main` aus: https://github.com/StanleeBeast/Jarvisss/actions
 - Die Tests verwenden nur eine simulierte Modellantwort; sie testen keine echte OpenAI-Verbindung und beweisen nicht, dass der Worker deployed ist.
