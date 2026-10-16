@@ -56,6 +56,7 @@
     if (tab.id === 'system') {
       const last = window.JarvisCore?.lastStatus;
       if (!last || Date.now() - new Date(last.checkedAt).getTime() > 60_000) window.JarvisCore?.checkSystem();
+      window.JarvisAgent?.loadInsights();
     }
     if (tab.id === 'devices') window.JarvisAuth?.loadDevices();
     if (tab.id === 'memory') window.JarvisMemory?.sync();
