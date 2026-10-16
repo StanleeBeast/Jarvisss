@@ -1,6 +1,6 @@
 # J.A.R.V.I.S.S. – Bestandsaufnahme, Status und Fahrplan
 
-Stand: 16.10.2026 · Build 0.7.0 (Phase 0, 1, 2b, 3 und 4) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
+Stand: 16.10.2026 · Build 0.8.0 (Phase 0, 1, 2b, 3, 4 und 6) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
 
 Diese Datei ist die verbindliche Übersicht darüber, was tatsächlich funktioniert. „Getestet“ heißt hier: durch automatisierte Tests oder einen echten Browserlauf geprüft. Ein Test auf deinem iPad und ein Test gegen echtes Cloudflare/OpenAI stehen jeweils separat aus und sind so gekennzeichnet.
 
@@ -94,7 +94,10 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 | Wetter (Open-Meteo) | 🟡 | Fester Ort Miltitz/Nebelschütz. In der Testumgebung nicht erreichbar, daher dort ungetestet. |
 | Kalender | 🟠 | Nur `.ics`-Export. ⛔ Direkter iCloud-Zugriff ist aus einer Website nicht möglich und braucht eine native App (EventKit, Phase 5). |
 | WhatsApp / E-Mail | 🟠 | Nur vorbereiteter Entwurf, Versand durch dich. ⛔ Kein offizieller Zugriff auf private Chats. |
-| Goodnotes / Lernassistent | ⬜ | Phase 6, zuerst PDF-Import. ⛔ Kein direkter Zugriff auf die Goodnotes-Bibliothek. |
+| Lernassistent: PDF-Import | ✅ | Goodnotes → Teilen → Exportieren → PDF → In Dateien sichern, dann in JARVIS unter **Lernen** wählen. Getippter Text wird im Browser gelesen (pdf.js, lokal im Repository, bis 40 Seiten). Bei Handschrift (wenig Text) gehen höchstens 8 Seiten als Bild an die KI. Getestet mit echten PDFs (Text und reine Bildseiten). ⛔ Kein direkter Zugriff auf die Goodnotes-Bibliothek. |
+| Lernzettel, unklare Stellen, Ergänzungen | ✅ | Lernzettel nur aus deinen Unterlagen. Unklare oder unleserliche Stellen werden aufgelistet. Ergänzungen nur auf Wunsch, getrennt und mit Sicherheitsangabe. **Keine Quellenangaben**, weil keine echte Recherche stattfindet; JARVIS erfindet deshalb auch keine. Eine Web-Recherche mit Quellen ist ein späterer Schritt. |
+| Karteikarten & Quiz | ✅ | Lernkartei mit 5 Fächern (Wiederholung nach 0/1/3/7/14 Tagen). Quiz mit 4 Antworten, falsche Antworten werden wiederholt, bis alles einmal richtig war. Schwierige Karten markieren, Fortschritt speichern ist abschaltbar. |
+| Qualität der KI-Ergebnisse | ⏳ | Mit echtem Modell und echter Handschrift noch nicht getestet. Die Lesbarkeit von Handschrift hängt stark von der Schrift ab. |
 | Automatisierungen / Zeitpläne | ⬜ | Phase 4. |
 | Designstudio | 🟠 | Farbsignatur, Akzentfarbe, Glow und Animationen wirken auf die Hauptansicht. Layout-Varianten sind deaktiviert und klar gekennzeichnet. Speicherung nur lokal. |
 
@@ -122,7 +125,7 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 [Phase 9 Design]  parallel möglich
 ```
 
-Nächster sinnvoller Schritt: **Phase 6 (Lernassistent)**: PDF-Import aus Goodnotes (Export als PDF), Lernzettel, Karteikarten und Quiz. Phase 5 (Kalender) braucht eine native App mit EventKit und damit einen Mac mit Xcode. Bis dahin bleibt der .ics-Export.
+Nächster sinnvoller Schritt: **Phase 7 (Nachrichten-Import)**: ausgewählte WhatsApp-Nachrichten manuell einfügen, Aufgaben daraus erkennen, Antwortentwürfe; danach **Phase 8 (Tagesplaner)**. Phase 5 (Kalender) braucht eine native App mit EventKit und damit einen Mac mit Xcode. Bis dahin bleibt der .ics-Export.
 
 ---
 
@@ -199,9 +202,10 @@ Kostenkontrolle heute:
 
 | Test | Wo | Ergebnis |
 |---|---|---|
-| Backend: 66 Tests (Phase 4: Push-Verschlüsselung durch unabhängige Entschlüsselung geprüft, VAPID-Signatur verifiziert, nur echte Push-Dienste erlaubt, abgelaufene Abos werden entfernt, Briefing genau einmal zur Ortszeit auch bei parallelen Läufen, Wochentage, Zeitumstellung, verpasste Fenster, Erinnerungen nur für fällige offene Aufgaben, geplante Hinweise inkl. Absagen, Ankunfts-Routine mit Dublettenschutz, CORS für PUT/DELETE; dazu Phase 3: Vorschläge speichern nichts vor Bestätigung, ungültige Zeiten werden zurückgemeldet, Änderungen nur an existierenden Aufgaben, ohne D1 nur Text-Entwürfe, Sommerzeit-Umstellung, Wetter, Tageslimits für Chat und Sprachausgabe, Werkzeugkatalog; dazu Gerätesitzungen: Anmeldung, gefälschte/abgelaufene Schlüssel, Rotation, Wiederverwendungs-Sperre, Kopplung inkl. Fehlversuchs-Limit und Ablauf, Widerruf, Abmeldung, Protokoll ohne Inhalte; Gedächtnis: anlegen, auf zweitem Gerät lesen, bearbeiten, löschen mit Bestätigung; dazu Auth, CORS inkl. PATCH, Größenlimits, ungültiges JSON, fehlende Secrets, Aufgaben anlegen/abrufen/ändern/ungültig/404/Reihenfolge, D1 fehlt/kaputt/ohne Migration, Systemstatus, Agent mit mehreren Werkzeugaufrufen, Werkzeug ohne D1 verweigert, Schrittlimit, Modell 429/unerreichbar, TTS-Stimmen-Allow-List) | `backend/*.test.js`, CI | ✅ bestanden |
+| Backend: 74 Tests (Phase 6: Lernset aus Text und Seitenbildern, strukturierte Modellantwort, fehlerhafte Quizfragen werden aussortiert, ohne Ergänzungs-Wunsch keine Ergänzungen, ungültige Uploads ohne Modellaufruf abgewiesen, Modellfehler speichern nichts, Tageslimit, Lernkartei-Fächer, Fortschritt nur mit Erlaubnis, Löschen; dazu Phase 4: Push-Verschlüsselung durch unabhängige Entschlüsselung geprüft, VAPID-Signatur verifiziert, nur echte Push-Dienste erlaubt, abgelaufene Abos werden entfernt, Briefing genau einmal zur Ortszeit auch bei parallelen Läufen, Wochentage, Zeitumstellung, verpasste Fenster, Erinnerungen nur für fällige offene Aufgaben, geplante Hinweise inkl. Absagen, Ankunfts-Routine mit Dublettenschutz, CORS für PUT/DELETE; dazu Phase 3: Vorschläge speichern nichts vor Bestätigung, ungültige Zeiten werden zurückgemeldet, Änderungen nur an existierenden Aufgaben, ohne D1 nur Text-Entwürfe, Sommerzeit-Umstellung, Wetter, Tageslimits für Chat und Sprachausgabe, Werkzeugkatalog; dazu Gerätesitzungen: Anmeldung, gefälschte/abgelaufene Schlüssel, Rotation, Wiederverwendungs-Sperre, Kopplung inkl. Fehlversuchs-Limit und Ablauf, Widerruf, Abmeldung, Protokoll ohne Inhalte; Gedächtnis: anlegen, auf zweitem Gerät lesen, bearbeiten, löschen mit Bestätigung; dazu Auth, CORS inkl. PATCH, Größenlimits, ungültiges JSON, fehlende Secrets, Aufgaben anlegen/abrufen/ändern/ungültig/404/Reihenfolge, D1 fehlt/kaputt/ohne Migration, Systemstatus, Agent mit mehreren Werkzeugaufrufen, Werkzeug ohne D1 verweigert, Schrittlimit, Modell 429/unerreichbar, TTS-Stimmen-Allow-List) | `backend/*.test.js`, CI | ✅ bestanden |
 | Frontend statisch: Syntax aller Skripte, eindeutige IDs, alle referenzierten IDs vorhanden, Service-Worker-Dateien, Manifest, keine Schlüssel im Code | `tests/frontend.test.mjs`, CI | ✅ bestanden |
 | Browser-Ende-zu-Ende: echter Worker-Code + SQLite-D1 + simuliertes OpenAI, Chromium in iPad- und iPhone-Größe (38 Prüfungen: Status, Aufgaben, Tabs, Gedächtnis, Agent liest Aufgaben, Offline, Nachrichten-Refresh ohne Einfrieren, keine JS-Fehler, kein horizontales Scrollen) | lokal | ✅ bestanden (nicht in CI) |
+| Browser Phase 6 auf iPad und iPhone mit echten PDFs (38 Prüfungen): getipptes PDF als Text gelesen, reine Bild-PDF als Seitenbilder, Lernzettel, unklare Stellen, Ergänzungen getrennt, Quiz wiederholt Fehler, Karteikarten, Markieren, Fortschritt, Löschen mit Rückfrage | lokal | ✅ bestanden (nicht in CI) |
 | Browser Phase 4 (19 Prüfungen): Routinen speichern und laden, Ankunft mit verzögertem Überblick und Absagen, Briefing über Benachrichtigungs-Link, Inhalte wie eingestellt, Wecker-Vorschlag ehrlich, Status zeigt Push und Zeitplaner | lokal | ✅ bestanden (nicht in CI) |
 | Echte Push-Zustellung auf iPad/iPhone | – | ⏳ ausstehend (du, nach dem Deployment) |
 | Browser Phase 3 auf iPad und iPhone (28 Prüfungen): Vorschlagskarte, nichts gespeichert vor Bestätigung, Speichern mit Datenbank-Bestätigung, Verwerfen ändert nichts, Erinnerung vorschlagen und synchronisieren, Abbrechen, Kosten- und Berechtigungsanzeige, kein seitliches Scrollen | lokal | ✅ bestanden (nicht in CI) |
