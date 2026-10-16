@@ -6,14 +6,14 @@
   const el = (id) => document.getElementById(id);
   const h = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
   const KIND = {
-    school: { label: 'Schule', color: '#55eaff' },
-    work: { label: 'Arbeit', color: '#5b9dff' },
-    sport: { label: 'Sport', color: '#6dffcf' },
-    routine: { label: 'Routine', color: '#b5a4ff' },
-    other: { label: 'Termin', color: '#8fc6ff' },
-    task: { label: 'Aufgabe', color: '#a98bff' },
-    break: { label: 'Pause', color: '#5fd8c0' },
-    free: { label: 'Freizeit', color: '#ffc46b' }
+    school: { label: 'Schule', color: '#ffb347' },
+    work: { label: 'Arbeit', color: '#ff8a3d' },
+    sport: { label: 'Sport', color: '#4fe0b0' },
+    routine: { label: 'Routine', color: '#f0d9a8' },
+    other: { label: 'Termin', color: '#ffd27a' },
+    task: { label: 'Aufgabe', color: '#ff5a3c' },
+    break: { label: 'Pause', color: '#7fc9b0' },
+    free: { label: 'Freizeit', color: '#c9a46a' }
   };
   const PRIORITY = { high: 'hoch', normal: 'normal', low: 'niedrig' };
   const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];

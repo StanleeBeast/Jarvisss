@@ -2,7 +2,7 @@
 // Ein Status gilt nur dann als erfolgreich, wenn er in diesem Durchlauf tatsächlich geprüft wurde.
 (function () {
   'use strict';
-  const BUILD = '0.10.0';
+  const BUILD = '0.11.0';
   const LAST_STATUS_KEY = 'jarvis_last_status_v1';
   const LAST_AI_OK_KEY = 'jarvis_last_ai_ok_v1';
   const CORE_LABELS = { idle: 'BEREIT', listening: 'ZUHÖREN', processing: 'VERARBEITE', speaking: 'SPRICHT', success: 'BESTÄTIGT', warning: 'HINWEIS', offline: 'OFFLINE', error: 'FEHLER' };
