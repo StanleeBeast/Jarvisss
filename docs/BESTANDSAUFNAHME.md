@@ -1,6 +1,6 @@
 # J.A.R.V.I.S.S. – Bestandsaufnahme, Status und Fahrplan
 
-Stand: 16.10.2026 · Build 0.10.0 (Phase 0, 1, 2b, 3, 4, 6, 7 und 8) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
+Stand: 16.10.2026 · Build 0.11.0 (Phase 0, 1, 2b, 3, 4, 6, 7, 8 und Neugestaltung „Stark HUD“) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
 
 Diese Datei ist die verbindliche Übersicht darüber, was tatsächlich funktioniert. „Getestet“ heißt hier: durch automatisierte Tests oder einen echten Browserlauf geprüft. Ein Test auf deinem iPad und ein Test gegen echtes Cloudflare/OpenAI stehen jeweils separat aus und sind so gekennzeichnet.
 
@@ -41,7 +41,9 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 |---|---|---|
 | PWA, Installation über Safari | 🟡 | Manifest und Service Worker geprüft. Installation auf echtem iPad steht aus. |
 | Offline-Verhalten | ✅ | Netzwerk zuerst, Cache als Rückfall. ORB und Statuszeile zeigen „OFFLINE“ (Browsertest). |
-| Startsequenz | 🟡 | Vorhanden, überspringbar, reduzierte Bewegung wird respektiert. |
+| Startsequenz | ✅ | Animierte, stilisierte Punktkarte mit echten Umrissen (Land als leuchtende Wabenpunkte, die sich in Wellen aufbauen; Deutschland hervorgehoben, Grenze als laufende Linie; Radar und Impulsringe am Ziel): Globus → Anflug Europa → Deutschland → Zielerfassung auf Miltitz (Nebelschütz) mit Koordinaten und Nachbarorten (Kamenz, Bautzen, Hoyerswerda, Bischofswerda, Dresden). Kartendaten: Natural Earth (gemeinfrei), lokal im Repository, keine Abrufe bei Dritten. Keine Straßen- oder Gebäudedaten. Überspringbar und unter Design abschaltbar. Im Browser auf iPad und iPhone geprüft. |
+| Design „Stark HUD“ | ✅ | Gold/Orange auf Anthrazit, Rot für Warnungen, abgeschrägte HUD-Rahmen, Schrift Rajdhani (OFL, lokal). ORB: Partikel-Kugel (Canvas), reagiert auf Zuhören, Denken, Sprechen, Erfolg, Fehler, Offline. Hintergrund: langsam driftende Höhenlinien-Topografie. Animationen pausieren, wenn die Seite nicht sichtbar ist. |
+| Animationen | ✅ | Neuer Schalter unter Einstellungen → Design: „Immer an“, „Wie das Gerät“, „Aus“. Ursache, warum bisher kaum etwas lief: Die Standard-Designvorlage hatte Animationen ausgeschaltet, und iPadOS-„Bewegung reduzieren“ schaltet sie zusätzlich ab. Ist das an, bietet die Startanimation „Animationen einschalten“ an. Getestet: 11 Browserprüfungen. |
 | ORB-Zustände | ✅ | Bereit, Zuhören, Verarbeite, Spricht, Bestätigt, Hinweis, Fehler, Offline. Nur aus echten Ereignissen abgeleitet. „Recherchiert“/„Führt aus“ fehlen bewusst, da das Backend Zwischenschritte noch nicht live meldet. Stattdessen zeigt die Antwortkarte, welche Werkzeuge tatsächlich liefen. |
 | Systemstatus-Ansicht | ✅ | Gerät + Backend. Jeder Eintrag zeigt „geprüft“ oder „nicht live geprüft“. Echter KI-Test per Knopf (kostet wenige Tokens). |
 | Kontrollzentrum (Einstellungen) | ✅ | Tabs: System, Tagesplan, Aufgaben, Stimme & KI, Gedächtnis, Planung & Entwürfe, Design, Verlauf. |
