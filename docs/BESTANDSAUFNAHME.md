@@ -1,6 +1,6 @@
 # J.A.R.V.I.S.S. – Bestandsaufnahme, Status und Fahrplan
 
-Stand: 16.10.2026 · Build 0.6.0 (Phase 0, 1, 2b und 3) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
+Stand: 16.10.2026 · Build 0.7.0 (Phase 0, 1, 2b, 3 und 4) · Branch `claude/jarvisss-audit-stabilize-piq5ze`
 
 Diese Datei ist die verbindliche Übersicht darüber, was tatsächlich funktioniert. „Getestet“ heißt hier: durch automatisierte Tests oder einen echten Browserlauf geprüft. Ein Test auf deinem iPad und ein Test gegen echtes Cloudflare/OpenAI stehen jeweils separat aus und sind so gekennzeichnet.
 
@@ -61,7 +61,13 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 | Kostenlimits | ✅ | Tageslimits für KI-Anfragen, Tokens und Sprachausgabe (D1, Tag nach deutscher Zeit). Bei Überschreitung wird das Modell gar nicht erst aufgerufen. Anzeige unter System → Kosten & Nutzung. |
 | Berechtigungsübersicht | ✅ | System → Berechtigungen des Agenten: welches Werkzeug liest, welches nur vorschlägt, was der Agent nicht kann. |
 | Wetter als Werkzeug | ✅ | Open-Meteo, Ort über `WEATHER_LAT`/`WEATHER_LON`/`WEATHER_NAME` im Worker änderbar (Standard: Miltitz). |
-| Hörbare Erinnerung zur Uhrzeit | ⬜ | Eine fällige Aufgabe löst noch keinen Ton und keine Benachrichtigung aus. JARVIS sagt das ehrlich. Kommt in Phase 4 (Web-Push bzw. Kurzbefehle). |
+| Push-Benachrichtigungen | 🟡 | Eigene Web-Push-Implementierung im Worker (RFC 8291/8292, ohne Fremddienst). Die Verschlüsselung ist durch unabhängige Entschlüsselung im Test bewiesen. Nur echte Push-Dienste sind als Ziel erlaubt. **Auf echtem iPad/iPhone noch ungetestet.** Voraussetzung: JARVIS über Safari zum Home-Bildschirm hinzugefügt und von dort geöffnet (iOS/iPadOS 16.4+). |
+| Zeitplaner (Cloudflare Cron, alle 5 Min.) | ✅ | Getestet: keine Doppelausführung (auch bei parallelen Läufen), Wochentage, Sommer-/Winterzeit, verpasste Zeitfenster (Briefing 3 h, Erinnerung 6 h, geplante Hinweise 2 h) werden nicht nachträglich verschickt. Zeitversatz: bis zu 5 Minuten. |
+| Aufgaben-Erinnerungen | ✅ | Push zur Fälligkeit, einmalig. Titel auf dem Sperrbildschirm optional verborgen. Kein lauter Wecker. |
+| Morgenbriefing-Routine | ✅ | Uhrzeit, Wochentage, Inhalte (Wetter, Aufgaben, Nachrichten). Das Briefing wird ohne KI aus echten Daten erstellt (kostet keine Tokens), die Benachrichtigung öffnet es direkt. „Vorlesen“ per Tipp, weil Safari Ton erst nach einer Berührung erlaubt. |
+| Ankunft zu Hause | 🟡 | Über eine Kurzbefehle-Automation („Ankommen“ → URL öffnen). JARVIS begrüßt dich und meldet sich nach der einstellbaren Ankommensphase. Doppelte Auslösung wird erkannt. Die Automation selbst richtest du in der Kurzbefehle-App ein; je nach iPadOS-Version fragt das System nach einer Bestätigung. |
+| Wecker | 🟠 | ⛔ JARVIS kann keinen Wecker stellen. Er schlägt vor, deinen Kurzbefehl „JARVIS Wecker“ mit der Uhrzeit zu starten. Ob der Wecker gestellt wurde, kann JARVIS nicht prüfen und sagt das. |
+| Sich selbst im Hintergrund öffnen, mithören | ⛔ | Auf iPadOS für Web-Apps nicht möglich. Ersatz: Benachrichtigung antippen oder Kurzbefehl. |
 
 ### Sprache
 | Funktion | Status | Anmerkung |
@@ -116,7 +122,7 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 [Phase 9 Design]  parallel möglich
 ```
 
-Nächster sinnvoller Schritt: **Phase 4 (Automatisierungen)**: Morgenbriefing zur gewünschten Uhrzeit, Erinnerungen zu fälligen Aufgaben per Web-Push (iOS 16.4+ für Home-Bildschirm-Web-Apps), Cloudflare-Cron für serverseitige Zeitpläne und Apple-Kurzbefehle für „Ankunft zu Hause“ bzw. „Wecker stellen“.
+Nächster sinnvoller Schritt: **Phase 6 (Lernassistent)**: PDF-Import aus Goodnotes (Export als PDF), Lernzettel, Karteikarten und Quiz. Phase 5 (Kalender) braucht eine native App mit EventKit und damit einen Mac mit Xcode. Bis dahin bleibt der .ics-Export.
 
 ---
 
@@ -193,9 +199,11 @@ Kostenkontrolle heute:
 
 | Test | Wo | Ergebnis |
 |---|---|---|
-| Backend: 52 Tests (Phase 3: Vorschläge speichern nichts vor Bestätigung, ungültige Zeiten werden zurückgemeldet, Änderungen nur an existierenden Aufgaben, ohne D1 nur Text-Entwürfe, Sommerzeit-Umstellung, Wetter, Tageslimits für Chat und Sprachausgabe, Werkzeugkatalog; dazu Gerätesitzungen: Anmeldung, gefälschte/abgelaufene Schlüssel, Rotation, Wiederverwendungs-Sperre, Kopplung inkl. Fehlversuchs-Limit und Ablauf, Widerruf, Abmeldung, Protokoll ohne Inhalte; Gedächtnis: anlegen, auf zweitem Gerät lesen, bearbeiten, löschen mit Bestätigung; dazu Auth, CORS inkl. PATCH, Größenlimits, ungültiges JSON, fehlende Secrets, Aufgaben anlegen/abrufen/ändern/ungültig/404/Reihenfolge, D1 fehlt/kaputt/ohne Migration, Systemstatus, Agent mit mehreren Werkzeugaufrufen, Werkzeug ohne D1 verweigert, Schrittlimit, Modell 429/unerreichbar, TTS-Stimmen-Allow-List) | `backend/*.test.js`, CI | ✅ bestanden |
+| Backend: 66 Tests (Phase 4: Push-Verschlüsselung durch unabhängige Entschlüsselung geprüft, VAPID-Signatur verifiziert, nur echte Push-Dienste erlaubt, abgelaufene Abos werden entfernt, Briefing genau einmal zur Ortszeit auch bei parallelen Läufen, Wochentage, Zeitumstellung, verpasste Fenster, Erinnerungen nur für fällige offene Aufgaben, geplante Hinweise inkl. Absagen, Ankunfts-Routine mit Dublettenschutz, CORS für PUT/DELETE; dazu Phase 3: Vorschläge speichern nichts vor Bestätigung, ungültige Zeiten werden zurückgemeldet, Änderungen nur an existierenden Aufgaben, ohne D1 nur Text-Entwürfe, Sommerzeit-Umstellung, Wetter, Tageslimits für Chat und Sprachausgabe, Werkzeugkatalog; dazu Gerätesitzungen: Anmeldung, gefälschte/abgelaufene Schlüssel, Rotation, Wiederverwendungs-Sperre, Kopplung inkl. Fehlversuchs-Limit und Ablauf, Widerruf, Abmeldung, Protokoll ohne Inhalte; Gedächtnis: anlegen, auf zweitem Gerät lesen, bearbeiten, löschen mit Bestätigung; dazu Auth, CORS inkl. PATCH, Größenlimits, ungültiges JSON, fehlende Secrets, Aufgaben anlegen/abrufen/ändern/ungültig/404/Reihenfolge, D1 fehlt/kaputt/ohne Migration, Systemstatus, Agent mit mehreren Werkzeugaufrufen, Werkzeug ohne D1 verweigert, Schrittlimit, Modell 429/unerreichbar, TTS-Stimmen-Allow-List) | `backend/*.test.js`, CI | ✅ bestanden |
 | Frontend statisch: Syntax aller Skripte, eindeutige IDs, alle referenzierten IDs vorhanden, Service-Worker-Dateien, Manifest, keine Schlüssel im Code | `tests/frontend.test.mjs`, CI | ✅ bestanden |
 | Browser-Ende-zu-Ende: echter Worker-Code + SQLite-D1 + simuliertes OpenAI, Chromium in iPad- und iPhone-Größe (38 Prüfungen: Status, Aufgaben, Tabs, Gedächtnis, Agent liest Aufgaben, Offline, Nachrichten-Refresh ohne Einfrieren, keine JS-Fehler, kein horizontales Scrollen) | lokal | ✅ bestanden (nicht in CI) |
+| Browser Phase 4 (19 Prüfungen): Routinen speichern und laden, Ankunft mit verzögertem Überblick und Absagen, Briefing über Benachrichtigungs-Link, Inhalte wie eingestellt, Wecker-Vorschlag ehrlich, Status zeigt Push und Zeitplaner | lokal | ✅ bestanden (nicht in CI) |
+| Echte Push-Zustellung auf iPad/iPhone | – | ⏳ ausstehend (du, nach dem Deployment) |
 | Browser Phase 3 auf iPad und iPhone (28 Prüfungen): Vorschlagskarte, nichts gespeichert vor Bestätigung, Speichern mit Datenbank-Bestätigung, Verwerfen ändert nichts, Erinnerung vorschlagen und synchronisieren, Abbrechen, Kosten- und Berechtigungsanzeige, kein seitliches Scrollen | lokal | ✅ bestanden (nicht in CI) |
 | Browser mit zwei Geräten gleichzeitig (iPad + iPhone, 17 Prüfungen): automatische Umstellung auf Gerätesitzung, Admin-Token vom Gerät entfernt, Kopplung per Code, Gedächtnis und Aufgaben auf beiden Geräten, unbemerkte Sitzungserneuerung, Widerruf wirkt sofort, Protokoll | lokal | ✅ bestanden (nicht in CI) |
 | Echtes iPad / Safari / Installation | – | ⏳ ausstehend (du) |

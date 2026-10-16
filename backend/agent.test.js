@@ -100,7 +100,7 @@ test("without D1 only drafts are offered, never proposals", async () => {
   const result = await chat(env, [step(toolCall("a", "propose_task", { title: "x" })), answer("Nur Entwurf möglich.")]);
   const offered = result.seen[0].tools.map(t => t.function.name);
   assert.ok(offered.includes("draft_task"));
-  assert.ok(!offered.some(n => n.startsWith("propose_") || n === "list_tasks"));
+  assert.ok(!offered.some(n => (n.startsWith("propose_") && n !== "propose_alarm") || n === "list_tasks"), "only the alarm shortcut proposal works without a database");
   assert.equal(toolOutputs(result.seen)[0].error, "tool_not_allowed");
   assert.match(result.seen[0].messages[0].content, /kein Aufgabenspeicher/);
 });
@@ -109,7 +109,8 @@ test("system prompt carries the current local time and honest reminder limits", 
   const result = await chat(makeEnv(), [answer("Ok.")], "Hallo");
   const prompt = result.seen[0].messages[0].content;
   assert.match(prompt, /Zeitzone Europe\/Berlin/);
-  assert.match(prompt, /hörbaren Wecker/);
+  assert.match(prompt, /zur Uhrzeit nichts klingelt/, "without push the prompt must say reminders do not ring");
+  assert.match(prompt, /keinen Wecker selbst stellen/);
   assert.match(prompt, /NIEMALS, es sei bereits gespeichert/);
 });
 

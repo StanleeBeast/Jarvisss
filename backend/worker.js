@@ -13,6 +13,8 @@ import { handleTasksApi } from "./tasks.js";
 import { getNews } from "./news.js";
 import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL } from "./agent.js";
 import { checkBudget, addUsage, handleUsageApi, getUsage, limits } from "./usage.js";
+import { handlePushApi } from "./push.js";
+import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
 
 const TTS_VOICES = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"];
 const DEFAULT_TTS_VOICE = "coral";
@@ -28,7 +30,7 @@ function allowedOrigins(env) {
 function corsHeaders(origin, env) {
   const headers = {
     "Vary": "Origin",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
     "Content-Type": "application/json; charset=utf-8",
@@ -87,8 +89,8 @@ async function systemStatus(env, principal) {
         : { state: storage.state, detail: "Aufgaben-API benötigt die D1-Datenbank." },
       tools: { state: "available", detail: availableTools(env).map(t => t.name).join(", "), verified: true },
       costs: await costStatus(env),
+      ...(await schedulerStatus(env)),
       calendar: { state: "not_available", detail: "Kein Kalenderzugriff. Termine nur als .ics-Export; echter Zugriff braucht eine native App (EventKit)." },
-      automations: { state: "in_development", detail: "Keine serverseitigen Zeitpläne aktiv." },
       memory: access.devices.state === "available"
         ? { state: "available", detail: "Gedächtnis wird in D1 gespeichert und zwischen deinen Geräten synchronisiert.", verified: true }
         : { state: access.devices.state, detail: "Ohne D1 (inkl. Migration 0002) bleibt das Gedächtnis lokal im Browser." },
@@ -162,6 +164,10 @@ export default {
     if (usageResponse) return usageResponse;
     const toolsResponse = await handleToolsApi(request, env, headers, url);
     if (toolsResponse) return toolsResponse;
+    const pushResponse = await handlePushApi(request, env, headers, url);
+    if (pushResponse) return pushResponse;
+    const automationResponse = await handleAutomationApi(request, env, headers, url);
+    if (automationResponse) return automationResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
       const auth = await authenticate(request, env, headers);
       if (auth.response) return auth.response;
@@ -175,5 +181,10 @@ export default {
     if (request.method === "POST" && url.pathname === "/api/tts") return handleTts(request, env, headers);
     if (request.method === "POST" && (url.pathname === "/api/chat" || url.pathname === "/")) return handleChat(request, env, headers);
     return json({ error: "not_found" }, 404, headers);
+  },
+
+  // Cloudflare Cron (wrangler.toml → [triggers]): Erinnerungen, Morgenbriefing, geplante Benachrichtigungen.
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(runScheduler(env).catch(() => null));
   }
 };

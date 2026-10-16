@@ -8,6 +8,7 @@
     { id: 'tasks', label: 'Aufgaben', view: 'view-tasks' },
     { id: 'settings', label: 'Stimme & KI', view: 'view-settings' },
     { id: 'devices', label: 'Geräte', view: 'view-devices' },
+    { id: 'automation', label: 'Automatisierungen', view: 'view-automation' },
     { id: 'memory', label: 'Gedächtnis', view: 'view-memory' },
     { id: 'planner', label: 'Planung & Entwürfe', view: 'view-planner' },
     { id: 'design', label: 'Design', view: 'view-design' },
@@ -59,6 +60,7 @@
       window.JarvisAgent?.loadInsights();
     }
     if (tab.id === 'devices') window.JarvisAuth?.loadDevices();
+    if (tab.id === 'automation') window.JarvisAutomation?.load();
     if (tab.id === 'memory') window.JarvisMemory?.sync();
     if (tab.id === 'assistant') renderChat();
     if (tab.id === 'planner') renderEvents();
