@@ -2,18 +2,18 @@
 // Ein Status gilt nur dann als erfolgreich, wenn er in diesem Durchlauf tatsächlich geprüft wurde.
 (function () {
   'use strict';
-  const BUILD = '0.11.0';
+  const BUILD = '0.12.0';
   const LAST_STATUS_KEY = 'jarvis_last_status_v1';
   const LAST_AI_OK_KEY = 'jarvis_last_ai_ok_v1';
   const CORE_LABELS = { idle: 'BEREIT', listening: 'ZUHÖREN', processing: 'VERARBEITE', speaking: 'SPRICHT', success: 'BESTÄTIGT', warning: 'HINWEIS', offline: 'OFFLINE', error: 'FEHLER' };
   const STATE_TEXT = {
     available: 'Verfügbar', connected: 'Verbunden', configured: 'Eingerichtet', not_configured: 'Noch nicht eingerichtet',
-    migration_missing: 'Migration fehlt', unreachable: 'Nicht erreichbar', error: 'Fehler', manual_only: 'Nur manuell',
+    migration_missing: 'Migration fehlt', unreachable: 'Nicht erreichbar', error: 'Fehler', manual_only: 'Nur manuell', read_only: 'Nur lesen',
     in_development: 'In Entwicklung', not_available: 'Nicht verfügbar', permission_missing: 'Berechtigung fehlt', unknown: 'Unbekannt'
   };
   const STATE_TONE = {
     available: 'ok', connected: 'ok', configured: 'info', not_configured: 'warn', migration_missing: 'warn', unreachable: 'error',
-    error: 'error', manual_only: 'warn', in_development: 'warn', not_available: 'muted', permission_missing: 'warn', unknown: 'muted'
+    error: 'error', manual_only: 'warn', read_only: 'ok', in_development: 'warn', not_available: 'muted', permission_missing: 'warn', unknown: 'muted'
   };
   const COMPONENT_LABELS = {
     frontend: 'Frontend', network: 'Internetverbindung', serviceWorker: 'PWA · Offline-Cache', localStore: 'Lokaler Speicher',

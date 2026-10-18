@@ -279,6 +279,11 @@
     invalidate: () => { access = null; accessExpiresAt = 0; },
     session: readSession
   };
-  if (readSession()) removeAdminToken();
+  if (readSession()) {
+    removeAdminToken();
+    // Die Startseite lädt Nachrichten, bevor diese Datei geladen ist. Mit Gerätesitzung (ohne gemeinsames
+    // Zugangstoken) sah sie deshalb „nicht verbunden“. Jetzt, wo die Sitzung bekannt ist, neu laden.
+    if (typeof loadNews === 'function') loadNews();
+  }
   render();
 })();

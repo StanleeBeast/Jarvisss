@@ -18,6 +18,7 @@ import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.
 import { handleStudyApi } from "./study.js";
 import { handleMessagesApi } from "./messages.js";
 import { handlePlannerApi } from "./planner.js";
+import { handleCalendarApi, calendarStatus } from "./calendar.js";
 
 const TTS_VOICES = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"];
 const DEFAULT_TTS_VOICE = "coral";
@@ -113,7 +114,7 @@ async function systemStatus(env, principal) {
       ...(await schedulerStatus(env)),
       study: await studyStatus(env),
       planner: await plannerStatus(env),
-      calendar: { state: "not_available", detail: "Kein Kalenderzugriff. Termine nur als .ics-Export; echter Zugriff braucht eine native App (EventKit)." },
+      calendar: await calendarStatus(env),
       memory: access.devices.state === "available"
         ? { state: "available", detail: "Gedächtnis wird in D1 gespeichert und zwischen deinen Geräten synchronisiert.", verified: true }
         : { state: access.devices.state, detail: "Ohne D1 (inkl. Migration 0002) bleibt das Gedächtnis lokal im Browser." },
@@ -195,6 +196,8 @@ export default {
     if (studyResponse) return studyResponse;
     const messagesResponse = await handleMessagesApi(request, env, headers, url);
     if (messagesResponse) return messagesResponse;
+    const calendarResponse = await handleCalendarApi(request, env, headers, url);
+    if (calendarResponse) return calendarResponse;
     const plannerResponse = await handlePlannerApi(request, env, headers, url);
     if (plannerResponse) return plannerResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {

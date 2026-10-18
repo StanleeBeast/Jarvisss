@@ -144,7 +144,7 @@
 
   const CATEGORY = { A: 'A · Lesen', B: 'B · Vorschlagen' };
   const TOOL_TEXT = {
-    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen',
+    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', get_calendar_events: 'Kalender lesen (Abo-Link, nur lesen)', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen',
     propose_task: 'Aufgabe vorschlagen', propose_task_update: 'Aufgabenänderung vorschlagen', propose_memory: 'Erinnerung vorschlagen', propose_alarm: 'Wecker über Kurzbefehl vorschlagen', draft_task: 'Text-Entwurf (ohne Datenbank)'
   };
   function meter(label, used, max) {
@@ -183,7 +183,8 @@
       const rows = tools.body.tools.filter(t => t.available).map(t => info(CATEGORY[t.category] + ' · ' + (TOOL_TEXT[t.name] || t.name) + (t.requiresConfirmation ? ' · speichert erst nach deiner Bestätigung' : ' · ohne Rückfrage')));
       rows.push(info('C · Verändern: Aufgaben und Erinnerungen speichern oder ändern – nur, wenn du einen Vorschlag mit „Speichern“ bestätigst.'));
       rows.push(info('D · Folgenreich: Nachrichten senden, Kalender ändern, Löschen – kann der Agent nicht. Löschen nur durch dich mit Rückfrage.'));
-      rows.push(info('Kein Zugriff: Kalender, WhatsApp, E-Mail, Dateien, Kamera, andere Apps.'));
+      rows.push(info('Kalender: nur lesen über einen freigegebenen Abo-Link – Termine anlegen oder ändern kann JARVIS nicht.'));
+      rows.push(info('Kein Zugriff: WhatsApp, E-Mail, Dateien, Kamera, andere Apps.'));
       toolBox.replaceChildren(...rows);
     } else {
       toolBox.replaceChildren(info(tools.error === 'not_found' ? 'Der deployte Worker ist älter als dieses Frontend. Deploy-Workflow erneut ausführen.' : window.JarvisCore.errorText(tools.error)));

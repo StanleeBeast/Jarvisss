@@ -13,7 +13,8 @@
     other: { label: 'Termin', color: '#ffd27a' },
     task: { label: 'Aufgabe', color: '#ff5a3c' },
     break: { label: 'Pause', color: '#7fc9b0' },
-    free: { label: 'Freizeit', color: '#c9a46a' }
+    free: { label: 'Freizeit', color: '#c9a46a' },
+    calendar: { label: 'Kalender', color: '#6fd3e8' }
   };
   const PRIORITY = { high: 'hoch', normal: 'normal', low: 'niedrig' };
   const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -120,7 +121,7 @@
     + '</div>'
     + '<div class="day-replan"><div class="day-ask"><input id="dayAsk" maxlength="300" autocomplete="off" placeholder="Was ändert sich? z. B. „Sport fällt heute aus“" aria-label="Plan ändern"><button type="button" id="dayAskSend" aria-label="An JARVIS senden">↗</button></div>'
     + '<div class="day-quick"><button type="button" data-free="30">+30 min Freizeit</button><button type="button" data-free="60">+60 min Freizeit</button><button type="button" id="dayReset">Änderungen zurücksetzen</button></div>'
-    + '<p class="hint">JARVIS schlägt Änderungen nur vor – der Plan ändert sich erst nach deiner Bestätigung. Kein Kalender verbunden: Termine sind Aufgaben mit Uhrzeit oder feste Zeiten.</p></div>'
+    + '<p class="hint">JARVIS schlägt Änderungen nur vor – der Plan ändert sich erst nach deiner Bestätigung. Termine kommen aus Aufgaben mit Uhrzeit, festen Zeiten und – wenn verbunden – deinem Kalender (nur lesen).</p></div>'
     + '<div id="dayNotes" class="day-notes"></div>'
     + '<ol class="day-timeline" id="dayTimeline"></ol>'
     + '<div id="dayExtra" class="day-extra"></div>'
@@ -130,10 +131,20 @@
     + '<label class="hint">Konzentriert am Stück (min)<input type="number" min="25" max="240" id="prefFocus"></label><label class="hint">Pause danach (min)<input type="number" min="0" max="60" id="prefBreak"></label>'
     + '<label class="hint">Freizeit am Abend mindestens (min)<input type="number" min="0" max="600" id="prefFree"></label></div>'
     + '<div class="day-fixed-head"><strong>Feste Zeiten</strong><button type="button" id="prefAdd">+ Block</button></div><div id="prefFixed" class="day-fixed"></div>'
-    + '<div class="day-rhythm-actions"><button type="button" class="primary" id="prefSave">Rhythmus speichern</button><small id="prefState"></small></div></details>';
+    + '<div class="day-rhythm-actions"><button type="button" class="primary" id="prefSave">Rhythmus speichern</button><small id="prefState"></small></div></details>'
+    + '<details class="day-rhythm" id="dayCalendar"><summary><span>Kalender verbinden</span><small id="calSummary">Nur lesen · iCloud, Google oder Outlook</small></summary>'
+    + '<div class="day-cal-body">'
+    + '<p class="hint"><strong>So geht es auf dem iPhone/iPad:</strong> Kalender-App öffnen → unten „Kalender“ → beim gewünschten Kalender auf ⓘ tippen → „Öffentlicher Kalender“ einschalten → „Link teilen …“ → „Kopieren“. Den Link hier einfügen.</p>'
+    + '<p class="hint day-cal-warn">Wichtig: Ein öffentlicher Kalender kann von jedem gelesen werden, der den Link kennt. Nimm am besten einen eigenen Kalender nur für JARVIS (z. B. „Schule & Termine“) und teile den Link mit niemandem. JARVIS liest nur – er kann keine Termine anlegen, ändern oder löschen. Änderungen erscheinen nach bis zu 15 Minuten.</p>'
+    + '<div class="day-cal-row"><input id="calUrl" type="url" inputmode="url" autocomplete="off" placeholder="webcal://p…-caldav.icloud.com/published/2/…" aria-label="Kalender-Abo-Link"><button type="button" class="primary" id="calSave">Prüfen &amp; verbinden</button></div>'
+    + '<div class="day-cal-state" id="calState"></div>'
+    + '<div class="day-cal-actions"><button type="button" id="calRefresh">Jetzt neu laden</button><button type="button" id="calRemove">Verbindung trennen</button></div>'
+    + '<div id="calList" class="day-cal-list"></div></div></details>';
   document.querySelector('main')?.append(view);
 
   function explain(error) {
+    const cal = { calendar_url_required: 'Bitte einen Link einfügen.', invalid_calendar_url: 'Das sieht nicht wie ein Kalender-Abo-Link aus.', calendar_host_not_allowed: 'Nur Abo-Links von iCloud, Google Kalender oder Outlook sind erlaubt.', calendar_not_found: 'Unter diesem Link gibt es keinen Kalender (mehr). Ist „Öffentlicher Kalender“ noch eingeschaltet?', calendar_unreachable: 'Der Kalender ist gerade nicht erreichbar.', not_a_calendar: 'Unter diesem Link liegt kein Kalender.', calendar_too_large: 'Der Kalender ist zu groß (über 3 MB).', calendar_storage_unavailable: 'Kalender-Tabelle fehlt. Deploy-Workflow erneut ausführen (Migration 0008).' };
+    if (cal[error]) return cal[error];
     if (error === 'storage_not_configured') return 'Der Tagesplaner braucht die D1-Datenbank (backend/SETUP_TASKS.md).';
     if (error === 'planner_storage_unavailable') return 'Die Tabelle für den Tagesplaner fehlt. Deploy-Workflow erneut ausführen (Migration 0007).';
     if (error === 'not_found') return 'Der deployte Worker ist älter als diese Seite. Deploy-Workflow erneut ausführen.';
@@ -196,6 +207,7 @@
     if (b.kind === 'task' && b.taskId) {
       out.push(action('Erledigt', () => confirmAction('Aufgabe erledigt?', '„' + b.title + '“ wird als erledigt markiert.', () => setTaskDone(b))));
     }
+    if (b.source === 'calendar') { out.push(action('Im Plan ausblenden', () => confirmAction('Im Plan ausblenden?', '„' + b.title + '“ wird nur im Tagesplan für diesen Tag ausgeblendet. Im Kalender selbst ändert JARVIS nichts.', () => saveOverrides({ skip: [...plan.overrides.skip, b.id] }, 'Ausgeblendet.')))); return out; }
     if (b.fixed && b.source !== 'today') out.push(action('Fällt heute aus', () => confirmAction('Fällt heute aus?', '„' + b.title + '“ (' + b.startTime + '–' + b.endTime + ') wird nur für diesen Tag aus dem Plan genommen. Deine festen Zeiten bleiben unverändert.', () => saveOverrides({ skip: [...plan.overrides.skip, b.id] }, 'Aus dem Plan genommen.'))));
     if (b.source === 'today') out.push(action('Entfernen', () => confirmAction('Block entfernen?', '„' + b.title + '“ wird aus dem Plan für diesen Tag entfernt.', () => saveOverrides({ added: plan.overrides.added.filter(a => !(a.title === b.title && a.start === b.startTime)) }, 'Entfernt.'))));
     return out;
@@ -244,6 +256,7 @@
       if (b.overdue) meta.push('überfällig');
       if (b.due) meta.push('mit Uhrzeit');
       if (b.source === 'today') meta.push('nur heute');
+      if (b.source === 'calendar') meta.push('nur gelesen' + (b.location ? ' · ' + b.location : ''));
       card.append(h('div', 'day-card-kind', meta.join(' · ').toUpperCase()), h('div', 'day-card-title', b.title), h('div', 'day-card-meta', dur(e - s)));
       if (li.dataset.state === 'now') {
         const bar = h('div', 'day-progress');
@@ -274,6 +287,12 @@
       for (const t of plan.unscheduled) box.append(h('div', 'day-row', t.title + ' · ca. ' + t.minutes + ' min · Priorität ' + PRIORITY[t.priority]));
       box.append(h('p', 'hint', 'Tipp: Sag JARVIS z. B. „Verschiebe das Zimmer-Aufräumen auf morgen“ – er schlägt die Änderung vor.'));
       extra.push(box);
+    }
+    if (plan.allDay?.length) {
+      const box = h('div', 'day-panel');
+      box.append(h('div', 'day-panel-title', 'GANZTÄGIG · AUS DEM KALENDER'));
+      for (const a of plan.allDay) box.append(h('div', 'day-row', a.title + (a.location ? ' · ' + a.location : '')));
+      extra.unshift(box);
     }
     el('dayExtra').replaceChildren(...extra);
     dial();
@@ -338,6 +357,7 @@
       if (plan.date === localDate()) stripPlan = plan;
       renderStrip();
       renderView();
+      if (options.prefs) loadCalendar();
       if (options.prefs || !prefs) {
         const p = await window.JarvisCore.api('/api/planner/prefs');
         if (p.ok) { prefs = p.body.prefs; renderPrefs(); if (!p.body.configured) el('dayRhythm').open = true; }
@@ -370,6 +390,51 @@
     clearTimeout(window.n1ToastTimer);
     window.n1ToastTimer = setTimeout(() => { t.style.display = 'none'; }, 3200);
   }
+
+  // --- Kalender (nur lesen) -----------------------------------------------------------------------
+  async function loadCalendar() {
+    const state = el('calState'), list = el('calList');
+    const res = await window.JarvisCore.api('/api/calendar/settings');
+    if (!res.ok) { state.textContent = explain(res.error || res.body?.error); return; }
+    const on = res.body.configured;
+    el('calSummary').textContent = on ? 'Verbunden (nur lesen) · ' + res.body.source : 'Nur lesen · iCloud, Google oder Outlook';
+    el('calRefresh').hidden = el('calRemove').hidden = !on;
+    el('calSave').textContent = on ? 'Link ersetzen' : 'Prüfen & verbinden';
+    if (!on) { state.textContent = 'Kein Kalender verbunden.'; list.replaceChildren(); return; }
+    await showEvents(false);
+  }
+  async function showEvents(refresh) {
+    const state = el('calState'), list = el('calList');
+    state.textContent = 'Lade Termine …';
+    const res = await window.JarvisCore.api('/api/calendar/events?days=14&tz=' + encodeURIComponent(tz()) + (refresh ? '&refresh=1' : ''));
+    if (!res.ok) { state.textContent = explain(res.error || res.body?.error); return; }
+    const b = res.body;
+    const when = b.fetchedAt ? new Date(b.fetchedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–';
+    state.textContent = (b.error ? 'Letzter Abruf fehlgeschlagen: ' + explain(b.error) + (b.stale ? ' Angezeigt werden die zuletzt geladenen Termine.' : '') + ' ' : '') + b.events.length + ' Termine in den nächsten 14 Tagen · Stand ' + when + '.';
+    list.replaceChildren(...b.events.slice(0, 30).map(e => {
+      const row = h('div', 'day-row');
+      const d = new Date(e.start);
+      const t = e.allDay ? new Date(e.date + 'T12:00:00Z').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'UTC' }) + ' · ganztägig'
+        : d.toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      row.append(h('span', null, t + ' · ' + e.title + (e.location ? ' · ' + e.location : '')));
+      return row;
+    }));
+  }
+  el('calSave').addEventListener('click', async () => {
+    const url = el('calUrl').value.trim();
+    const state = el('calState');
+    if (!url) { state.textContent = explain('calendar_url_required'); return; }
+    state.textContent = 'Prüfe den Link …';
+    const res = await window.JarvisCore.api('/api/calendar/settings?tz=' + encodeURIComponent(tz()), { method: 'PUT', body: { url } });
+    if (res.ok && res.body?.saved) { el('calUrl').value = ''; window.JarvisCore.flash('success'); toastMsg('Kalender verbunden – ' + res.body.events + ' Termine gefunden.'); await loadCalendar(); await load(); }
+    else { state.textContent = 'Nicht verbunden: ' + explain(res.error || res.body?.error); window.JarvisCore.flash('error'); }
+  });
+  el('calRefresh').addEventListener('click', async () => { await showEvents(true); await load(); });
+  el('calRemove').addEventListener('click', () => confirmAction('Kalender trennen?', 'JARVIS vergisst den Abo-Link und die zwischengespeicherten Termine. Dein Kalender selbst bleibt unverändert. Tipp: Schalte in der Kalender-App „Öffentlicher Kalender“ wieder aus, wenn du den Link nicht mehr brauchst.', async () => {
+    const res = await window.JarvisCore.api('/api/calendar/settings', { method: 'DELETE' });
+    if (res.ok) { toastMsg('Kalender getrennt.'); await loadCalendar(); await load(); }
+    else toastMsg('Nicht getrennt: ' + explain(res.error || res.body?.error));
+  }));
 
   el('dayPrev').addEventListener('click', () => { date = shiftDate(date, -1); load(); });
   el('dayNext').addEventListener('click', () => { date = shiftDate(date, 1); load(); });
