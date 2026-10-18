@@ -46,6 +46,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           JARVIS_ACCESS_TOKEN: ${{ secrets.JARVIS_ACCESS_TOKEN }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
         run: |
           set -eu
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing GitHub secret CLOUDFLARE_API_TOKEN"; exit 1)
@@ -55,3 +57,12 @@ jobs:
           npx --yes wrangler deploy --config wrangler.toml
           printf '%s' "$OPENAI_API_KEY" | npx --yes wrangler secret put OPENAI_API_KEY --config wrangler.toml
           printf '%s' "$JARVIS_ACCESS_TOKEN" | npx --yes wrangler secret put JARVIS_ACCESS_TOKEN --config wrangler.toml
+          # Optional: ElevenLabs-Stimme. Ohne Secret bleibt die OpenAI-Stimme aktiv.
+          if [ -n "${ELEVENLABS_API_KEY:-}" ]; then
+            printf '%s' "$ELEVENLABS_API_KEY" | npx --yes wrangler secret put ELEVENLABS_API_KEY --config wrangler.toml
+          else
+            echo "ELEVENLABS_API_KEY nicht gesetzt – OpenAI-Stimme bleibt aktiv."
+          fi
+          if [ -n "${ELEVENLABS_VOICE_ID:-}" ]; then
+            printf '%s' "$ELEVENLABS_VOICE_ID" | npx --yes wrangler secret put ELEVENLABS_VOICE_ID --config wrangler.toml
+          fi

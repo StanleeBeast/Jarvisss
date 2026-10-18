@@ -205,3 +205,7 @@ body.no-motion #nexusOne .n1-left>*,body.no-motion #nexusOne .n1-news,body.no-mo
 .day-cal-state{font-size:12px;color:var(--muted);margin:10px 0 8px}
 .day-cal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .day-cal-list{display:grid;gap:2px}
+
+/* Stimme */
+#view-settings [hidden]{display:none!important}
+.voice-extra .voice-actions{display:flex;gap:8px;margin:6px 0}
