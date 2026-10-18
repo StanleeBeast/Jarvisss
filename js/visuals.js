@@ -5,13 +5,19 @@
   'use strict';
   const el = (id) => document.getElementById(id);
   const HOME = { lat: 51.255, lon: 14.18, name: 'MILTITZ · NEBELSCHÜTZ' };
+  // Orte zur Orientierung: tier 1 = Großstädte, 2 = Region, 3 = Umgebung (Koordinaten gerundet)
   const TOWNS = [
-    { name: 'KAMENZ', lat: 51.268, lon: 14.094 },
-    { name: 'BAUTZEN', lat: 51.181, lon: 14.424 },
-    { name: 'DRESDEN', lat: 51.050, lon: 13.737 },
-    { name: 'HOYERSWERDA', lat: 51.438, lon: 14.235 },
-    { name: 'BISCHOFSWERDA', lat: 51.127, lon: 14.180 }
+    { name: 'BERLIN', lat: 52.520, lon: 13.405, tier: 1 }, { name: 'LEIPZIG', lat: 51.340, lon: 12.375, tier: 1 },
+    { name: 'DRESDEN', lat: 51.050, lon: 13.737, tier: 1 }, { name: 'PRAG', lat: 50.075, lon: 14.438, tier: 1 },
+    { name: 'WROCŁAW', lat: 51.108, lon: 17.038, tier: 1 },
+    { name: 'COTTBUS', lat: 51.761, lon: 14.334, tier: 2 }, { name: 'GÖRLITZ', lat: 51.153, lon: 14.987, tier: 2 },
+    { name: 'ZITTAU', lat: 50.896, lon: 14.807, tier: 2 }, { name: 'BAUTZEN', lat: 51.181, lon: 14.424, tier: 2 },
+    { name: 'HOYERSWERDA', lat: 51.438, lon: 14.235, tier: 2 },
+    { name: 'KAMENZ', lat: 51.268, lon: 14.094, tier: 3 }, { name: 'BISCHOFSWERDA', lat: 51.127, lon: 14.180, tier: 3 },
+    { name: 'RADEBERG', lat: 51.117, lon: 13.917, tier: 3 }, { name: 'PULSNITZ', lat: 51.183, lon: 14.017, tier: 3 },
+    { name: 'KÖNIGSBRÜCK', lat: 51.265, lon: 13.905, tier: 3 }, { name: 'WITTICHENAU', lat: 51.385, lon: 14.244, tier: 3 }
   ];
+  const distKm = (a, b) => { const R = 6371, D = Math.PI / 180, dLat = (b.lat - a.lat) * D, dLon = (b.lon - a.lon) * D; const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * D) * Math.cos(b.lat * D) * Math.sin(dLon / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
 
   // --- Animationen: System / Immer an / Aus ------------------------------------------------------
   const MOTION_KEY = 'jarvis_motion_mode_v1';
@@ -333,7 +339,7 @@
       ctx.globalAlpha = alpha; ctx.strokeStyle = 'rgba(255,179,71,0.5)'; ctx.lineWidth = 0.6; ctx.stroke(); ctx.globalAlpha = 1;
     }
     // Punkte erscheinen als Welle vom Bildmittelpunkt aus und funkeln leicht.
-    function drawDots(arr, stride, view, step, alpha, ms, flagged) {
+    function drawDots(arr, stride, view, step, alpha, ms, flagged, fade) {
       if (!arr || alpha <= 0.01) return;
       const size = Math.max(1.1, Math.min(5.5, step * view.k * 0.42));
       const maxR = Math.hypot(w, h) / 2;
@@ -346,7 +352,9 @@
         const reveal = Math.min(1, Math.max(0, (ms - 150 - dist * 900) / 450));
         if (reveal <= 0) continue;
         const tw = 0.75 + 0.25 * Math.sin(ms / 260 + i * 0.37);
-        const a = alpha * reveal * tw * (flagged ? (home ? 0.95 : 0.35) : 0.75);
+        const f = fade ? fade(arr[i], arr[i + 1]) : 1;
+        if (f <= 0.01) continue;
+        const a = f * alpha * reveal * tw * (flagged ? (home ? 0.95 : 0.35) : 0.75);
         ctx.fillStyle = home ? 'rgba(255,205,120,' + a + ')' : flagged ? 'rgba(200,120,50,' + a + ')' : 'rgba(255,170,60,' + a + ')';
         const sz = size * (home ? 1.1 : 0.9);
         ctx.fillRect(q[0] - sz / 2, q[1] - sz / 2, sz, sz);
@@ -361,18 +369,16 @@
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, radius, ang - (k + 1) * 0.035, ang - k * 0.035); ctx.closePath();
         ctx.fillStyle = 'rgba(255,170,60,' + (0.16 * (1 - k / 18)) + ')'; ctx.fill();
       }
-      ctx.strokeStyle = 'rgba(255,179,71,0.25)'; ctx.lineWidth = 1;
-      for (const f of [0.33, 0.66, 1]) { ctx.beginPath(); ctx.arc(0, 0, radius * f, 0, Math.PI * 2); ctx.stroke(); }
       ctx.restore();
     }
     const ease = (x) => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
     const lerp = (a, b, t) => a + (b - a) * t;
-    const TOTAL = 7600;
+    const TOTAL = 8200;
     function render(ms) {
       const cx = w / 2, cy = h * 0.54;
       const R = Math.min(w, h) * 0.34;
-      const kEnd = w / (0.9 * D); // am Ende ca. 0,9 Längengrade (~60 km) über die Breite
-      const tRot = ease((ms - 200) / 2600), tZoom = ease((ms - 2300) / 3000);
+      const kEnd = w / (0.6 * D); // am Ende ca. 0,6 Längengrade (~40 km) über die Breite
+      const tRot = ease((ms - 200) / 2600), tZoom = ease((ms - 2300) / 3400);
       const view = {
         lon: lerp(-35, HOME.lon, tRot), lat: lerp(18, HOME.lat, tRot),
         k: R * Math.pow(kEnd / R, tZoom), cx, cy
@@ -394,7 +400,13 @@
         const wA = Math.max(0, 1 - (z - 3) / 4), rA = Math.min(1, Math.max(0, (z - 2.5) / 3)) * Math.max(0, 1 - (z - 70) / 60), lA = Math.min(1, Math.max(0, (z - 30) / 40));
         drawDots(geo.dots.world, 2, view, 1.8 * D, wA, ms, false);
         drawDots(geo.dots.region, 3, view, 0.32 * D, rA, ms, true);
-        drawDots(geo.dots.local, 3, view, 0.03 * D, lA, ms, true);
+        const nA = Math.min(1, Math.max(0, (z - 160) / 90));
+        // Feines Raster nur um Miltitz; zum Rand weich ausgeblendet, darunter das gröbere Raster.
+        const nearW = (lon, lat) => { const d = Math.hypot((lon - HOME.lon) * 0.626, lat - HOME.lat); return d < 0.2 ? 1 : d > 0.29 ? 0 : 1 - (d - 0.2) / 0.09; };
+        drawDots(geo.dots.local, 3, view, 0.03 * D, lA, ms, true, nA > 0 ? (lon, lat) => 1 - nA * 0.9 * nearW(lon, lat) : null);
+        drawDots(geo.dots.near, 3, view, 0.011 * D, nA, ms, true, nearW);
+        // Flüsse (Natural Earth, 50 m): kühler Akzent im goldenen HUD
+        strokeLines(geo.lines.water || [], view, '#6fd3e8', 1.3, Math.min(0.8, Math.max(0, (z - 6) / 20)));
         strokeLines(geo.lines.world, view, '#ffb347', 0.6, 0.18 * wA);
         if (z > 4) {
           ctx.setLineDash([6, 5]); ctx.lineDashOffset = -ms / 40;
@@ -402,24 +414,80 @@
           ctx.setLineDash([]);
         }
       }
-      // Städte in der Nähe
-      const townAlpha = Math.min(1, Math.max(0, (z - 120) / 80));
-      if (townAlpha > 0) {
-        ctx.font = '700 11px Rajdhani, sans-serif';
-        for (const t of TOWNS) {
-          const q = project(t.lon, t.lat, view.lon, view.lat, view.k, cx, cy);
-          if (!q) continue;
-          ctx.globalAlpha = townAlpha * 0.85;
-          ctx.fillStyle = '#ffb347'; ctx.fillRect(q[0] - 2, q[1] - 2, 4, 4);
-          ctx.fillStyle = 'rgba(255,220,170,0.85)'; ctx.fillText(t.name, q[0] + 7, q[1] + 4);
+      // Koordinatengitter mit Beschriftung (nah)
+      const gridA = Math.min(1, Math.max(0, (z - 90) / 80));
+      if (gridA > 0) {
+        ctx.font = '600 9px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,179,71,' + 0.55 * gridA + ')';
+        ctx.strokeStyle = 'rgba(255,179,71,' + 0.08 * gridA + ')'; ctx.lineWidth = 1;
+        for (let lat = 50.6; lat <= 52.0; lat += 0.1) {
+          const a = project(view.lon - 1.5, lat, view.lon, view.lat, view.k, cx, cy), b = project(view.lon + 1.5, lat, view.lon, view.lat, view.k, cx, cy);
+          if (!a || !b || a[1] < 40 || a[1] > h - 40) continue;
+          ctx.beginPath(); ctx.moveTo(0, a[1]); ctx.lineTo(w, b[1]); ctx.stroke();
+          ctx.fillText(lat.toFixed(1) + '°N', 8, a[1] - 3);
         }
-        ctx.globalAlpha = 1;
+        for (let lon = 13.0; lon <= 15.4; lon += 0.1) {
+          const a = project(lon, view.lat + 1, view.lon, view.lat, view.k, cx, cy), b = project(lon, view.lat - 1, view.lon, view.lat, view.k, cx, cy);
+          if (!a || !b || a[0] < 30 || a[0] > w - 40) continue;
+          ctx.beginPath(); ctx.moveTo(a[0], 0); ctx.lineTo(b[0], h); ctx.stroke();
+          const q = project(lon, view.lat, view.lon, view.lat, view.k, cx, cy);
+          ctx.fillText(lon.toFixed(1) + '°E', q[0] + 3, h * 0.2);
+        }
+      }
+      // Orte, je nach Zoomstufe; in der Nähe mit Entfernung zu Miltitz
+      ctx.font = '700 11px Rajdhani, sans-serif';
+      const taken = [[w / 2 + 40, h * 0.54 - 70, w / 2 + 300, h * 0.54 - 20], [w / 2 - 8, h * 0.54 - 8, w / 2 + 8, h * 0.54 + 8]]; // Platz für Zielbeschriftung und Zielpunkt
+      const free = (r) => !taken.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1]);
+      for (const t of TOWNS) {
+        const a = t.tier === 1 ? Math.min(1, Math.max(0, (z - 6) / 6)) * Math.max(0, 1 - (z - 120) / 60)
+          : t.tier === 2 ? Math.min(1, Math.max(0, (z - 35) / 30)) : Math.min(1, Math.max(0, (z - 140) / 60));
+        if (a <= 0.01) continue;
+        const q = project(t.lon, t.lat, view.lon, view.lat, view.k, cx, cy);
+        if (!q || q[0] < -50 || q[0] > w + 50 || q[1] < -20 || q[1] > h + 20) continue;
+        const km = distKm(HOME, t);
+        const label = t.tier === 1 ? t.name : t.name + ' · ' + (km < 10 ? km.toFixed(1) : Math.round(km)) + ' KM';
+        const tw = ctx.measureText(label).width;
+        const right = [q[0] - 4, q[1] - 10, q[0] + 12 + tw, q[1] + 6], left = [q[0] - 12 - tw, q[1] - 10, q[0] + 4, q[1] + 6];
+        const side = free(right) ? 'r' : free(left) ? 'l' : null;
+        if (!side) continue;
+        taken.push(side === 'r' ? right : left);
+        ctx.globalAlpha = a * 0.9;
+        ctx.fillStyle = '#ffb347'; ctx.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5);
+        ctx.fillStyle = 'rgba(255,225,180,0.95)'; ctx.fillText(label, side === 'r' ? q[0] + 8 : q[0] - 8 - tw, q[1] + 4);
+        if (t.tier === 3 && ms > 4800) {
+          ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(255,179,71,0.3)';
+          const hm = project(HOME.lon, HOME.lat, view.lon, view.lat, view.k, cx, cy);
+          if (hm) { ctx.beginPath(); ctx.moveTo(hm[0], hm[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); }
+          ctx.setLineDash([]);
+        }
+      }
+      ctx.globalAlpha = 1;
+      // Maßstab unten links
+      if (z > 20) {
+        const kmPerPx = 6371 / view.k;
+        const nice = [1, 2, 5, 10, 20, 50, 100, 200, 500].find(v => v / kmPerPx >= 90) || 500;
+        const len = nice / kmPerPx, x0 = 18, y0 = h - 60;
+        ctx.strokeStyle = 'rgba(255,179,71,0.85)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x0, y0 - 5); ctx.lineTo(x0, y0); ctx.lineTo(x0 + len, y0); ctx.lineTo(x0 + len, y0 - 5); ctx.stroke();
+        ctx.font = '700 10px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,220,170,0.9)';
+        ctx.fillText(nice + ' KM', x0 + len + 8, y0 + 3);
       }
       // Zielerfassung auf Miltitz
       const home = project(HOME.lon, HOME.lat, view.lon, view.lat, view.k, cx, cy);
       const lock = ease((ms - 4600) / 1300);
       if (home && ms > 2600) {
-        if (z > 60) sweep(home, ms, Math.min(w, h) * 0.32, Math.min(1, (z - 60) / 60));
+        if (z > 60) {
+          const ringA = Math.min(1, (z - 60) / 60);
+          sweep(home, ms, Math.min(w, h) * 0.32, ringA);
+          const pxPerKm = view.k / 6371;
+          ctx.font = '700 9px Rajdhani, sans-serif';
+          for (const km of [5, 10, 20]) {
+            const rr = km * pxPerKm;
+            if (rr > Math.max(w, h)) continue;
+            ctx.strokeStyle = 'rgba(255,179,71,' + 0.3 * ringA + ')'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+            ctx.beginPath(); ctx.arc(home[0], home[1], rr, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(255,179,71,' + 0.8 * ringA + ')'; ctx.fillText(km + ' KM', home[0] + rr * 0.7071 + 4, home[1] - rr * 0.7071 - 2);
+          }
+        }
         for (let r = 0; r < 3; r++) {
           const pulse = ((ms / 1400) + r / 3) % 1;
           ctx.strokeStyle = 'rgba(255,68,51,' + (0.7 * (1 - pulse)) + ')'; ctx.lineWidth = 1.5;
