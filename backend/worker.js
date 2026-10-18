@@ -101,9 +101,11 @@ async function systemStatus(env, principal) {
       ai: hasModelKey
         ? { state: "configured", detail: "API-Schlüssel hinterlegt. Ob das Modell antwortet, zeigt erst eine echte Anfrage.", model: env.OPENAI_MODEL || DEFAULT_MODEL, verified: false }
         : { state: "not_configured", detail: "OPENAI_API_KEY fehlt." },
-      tts: hasModelKey
-        ? { state: "configured", detail: "Neuronale Stimme über /api/tts; Systemstimme als Rückfall.", verified: false }
-        : { state: "not_configured", detail: "Ohne API-Schlüssel nur Systemstimme des Geräts." },
+      tts: env.ELEVENLABS_API_KEY
+        ? { state: "configured", detail: "ElevenLabs-Stimme über /api/tts" + (hasModelKey ? "; OpenAI springt ein, wenn ElevenLabs nicht antwortet" : "") + "; Systemstimme als letzter Rückfall. Ob die Stimme klingt, zeigt erst „Stimme testen“.", provider: "elevenlabs", verified: false }
+        : hasModelKey
+          ? { state: "configured", detail: "OpenAI-Stimme über /api/tts; Systemstimme als Rückfall. ElevenLabs: Secret ELEVENLABS_API_KEY fehlt.", provider: "openai", verified: false }
+          : { state: "not_configured", detail: "Ohne API-Schlüssel nur Systemstimme des Geräts." },
       news: { state: "configured", detail: "Google-News-RSS, kein Schlüssel nötig. Erreichbarkeit zeigt erst ein Abruf.", verified: false },
       storage,
       tasks: storage.state === "connected"
@@ -130,36 +132,91 @@ async function systemStatus(env, principal) {
 // Router
 // ---------------------------------------------------------------------------
 
+// Sprachausgabe: ElevenLabs, wenn ELEVENLABS_API_KEY gesetzt ist (Stimme frei wählbar), sonst OpenAI.
+// Scheitert ElevenLabs (z. B. Kontingent aufgebraucht), springt OpenAI ein – die Antwort sagt ehrlich, wer gesprochen hat.
+const ELEVEN_MODELS = { quality: "eleven_multilingual_v2", fast: "eleven_flash_v2_5" };
+const ELEVEN_DEFAULT_VOICE = "pNInz6obpgDQGcFmaJgB"; // ElevenLabs-Bibliotheksstimme „Adam“ (ruhig, tief), änderbar in der App
+const ELEVEN_VOICE_ID = /^[A-Za-z0-9]{10,40}$/;
+function audioResponse(upstream, headers, provider) {
+  const audioHeaders = new Headers(headers);
+  audioHeaders.set("Content-Type", upstream.headers.get("Content-Type") || "audio/mpeg");
+  audioHeaders.set("Cache-Control", "no-store");
+  audioHeaders.set("X-Jarvis-Tts", provider);
+  audioHeaders.set("Access-Control-Expose-Headers", "X-Jarvis-Tts");
+  return new Response(upstream.body, { status: 200, headers: audioHeaders });
+}
+async function elevenSpeech(env, input, voiceId, mode) {
+  const model = ELEVEN_MODELS[mode] || ELEVEN_MODELS.quality;
+  const body = { text: input, model_id: model, voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.15, use_speaker_boost: true } };
+  if (model === ELEVEN_MODELS.fast) body.language_code = "de";
+  return fetch("https://api.elevenlabs.io/v1/text-to-speech/" + voiceId + "?output_format=mp3_44100_128", {
+    method: "POST",
+    headers: { "xi-api-key": env.ELEVENLABS_API_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30000)
+  });
+}
+async function openaiSpeech(env, input, voice) {
+  return fetch("https://api.openai.com/v1/audio/speech", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gpt-4o-mini-tts",
+      voice,
+      input,
+      instructions: "Sprich auf Deutsch. Klinge warm, ruhig, natürlich und souverän, wie ein hochwertiger persönlicher KI-Assistent. Nutze natürliche Pausen und klare Aussprache. Nicht übertrieben dramatisch, nicht monoton, nicht übermäßig langsam."
+    }),
+    signal: AbortSignal.timeout(40000)
+  });
+}
 async function handleTts(request, env, headers) {
-  const auth = await authenticate(request, env, headers, { needsModel: true });
+  const auth = await authenticate(request, env, headers, { needsModel: !env.ELEVENLABS_API_KEY });
   if (auth.response) return auth.response;
   const body = await readJsonBody(request, 12_000);
   if (body.error) return json({ error: body.error }, body.status, headers);
   const input = clip(body.value.text, 4000).trim();
   if (!input) return json({ error: "text_required" }, 400, headers);
-  const voice = TTS_VOICES.includes(body.value.voice) ? body.value.voice : DEFAULT_TTS_VOICE;
+  const requested = typeof body.value.voice === "string" ? body.value.voice : "";
   const budget = await checkBudget(env, "tts", input.length);
   if (!budget.ok) return json({ error: budget.error, usage: budget.usage, limits: budget.limits }, 429, headers);
+  const wantsEleven = env.ELEVENLABS_API_KEY && !TTS_VOICES.includes(requested);
   try {
-    const upstream = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o-mini-tts",
-        voice,
-        input,
-        instructions: "Sprich auf Deutsch. Klinge warm, ruhig, natürlich und souverän, wie ein hochwertiger persönlicher KI-Assistent. Nutze natürliche Pausen und klare Aussprache. Nicht übertrieben dramatisch, nicht monoton, nicht übermäßig langsam."
-      }),
-      signal: AbortSignal.timeout(40000)
-    });
+    if (wantsEleven) {
+      const voiceId = requested.startsWith("el:") && ELEVEN_VOICE_ID.test(requested.slice(3)) ? requested.slice(3) : (ELEVEN_VOICE_ID.test(env.ELEVENLABS_VOICE_ID || "") ? env.ELEVENLABS_VOICE_ID : ELEVEN_DEFAULT_VOICE);
+      const upstream = await elevenSpeech(env, input, voiceId, body.value.mode).catch(() => null);
+      if (upstream?.ok) {
+        await addUsage(env, { ttsRequests: 1, ttsChars: input.length });
+        return audioResponse(upstream, headers, "elevenlabs");
+      }
+      if (!env.OPENAI_API_KEY) return json({ error: upstream?.status === 401 ? "tts_key_invalid" : upstream?.status === 429 ? "tts_rate_limited" : "tts_request_failed" }, 502, headers);
+    }
+    const voice = TTS_VOICES.includes(requested) ? requested : DEFAULT_TTS_VOICE;
+    const upstream = await openaiSpeech(env, input, voice);
     if (!upstream.ok) return json({ error: upstream.status === 429 ? "tts_rate_limited" : "tts_request_failed", status: upstream.status }, 502, headers);
     await addUsage(env, { ttsRequests: 1, ttsChars: input.length });
-    const audioHeaders = new Headers(headers);
-    audioHeaders.set("Content-Type", upstream.headers.get("Content-Type") || "audio/mpeg");
-    audioHeaders.set("Cache-Control", "no-store");
-    return new Response(upstream.body, { status: 200, headers: audioHeaders });
+    return audioResponse(upstream, headers, wantsEleven ? "openai-fallback" : "openai");
   } catch (error) {
     return json({ error: isTimeout(error) ? "tts_timeout" : "tts_unreachable" }, 502, headers);
+  }
+}
+// Liste der ElevenLabs-Stimmen des Kontos (Name, Merkmale, Hörprobe). Der Schlüssel verlässt den Worker nie.
+async function handleTtsVoices(request, env, headers) {
+  const auth = await authenticate(request, env, headers);
+  if (auth.response) return auth.response;
+  const openai = TTS_VOICES.map(v => ({ id: v, name: v[0].toUpperCase() + v.slice(1), provider: "openai" }));
+  if (!env.ELEVENLABS_API_KEY) return json({ provider: env.OPENAI_API_KEY ? "openai" : "none", elevenlabs: false, voices: openai }, 200, headers);
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": env.ELEVENLABS_API_KEY }, signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return json({ provider: "elevenlabs", elevenlabs: true, error: res.status === 401 ? "tts_key_invalid" : "tts_request_failed", voices: openai }, 200, headers);
+    const data = await res.json();
+    const eleven = (Array.isArray(data.voices) ? data.voices : []).filter(v => ELEVEN_VOICE_ID.test(v.voice_id || "")).slice(0, 100).map(v => ({
+      id: "el:" + v.voice_id, name: clip(v.name, 60), provider: "elevenlabs", category: clip(v.category, 30),
+      labels: v.labels && typeof v.labels === "object" ? Object.fromEntries(Object.entries(v.labels).slice(0, 6).map(([k, x]) => [clip(k, 20), clip(x, 30)])) : {},
+      preview: /^https:\/\/[a-z0-9.-]+\.(elevenlabs\.io|googleapis\.com|amazonaws\.com)\//.test(v.preview_url || "") ? v.preview_url : null
+    }));
+    return json({ provider: "elevenlabs", elevenlabs: true, defaultVoice: "el:" + (ELEVEN_VOICE_ID.test(env.ELEVENLABS_VOICE_ID || "") ? env.ELEVENLABS_VOICE_ID : ELEVEN_DEFAULT_VOICE), voices: [...eleven, ...openai] }, 200, headers);
+  } catch {
+    return json({ provider: "elevenlabs", elevenlabs: true, error: "tts_unreachable", voices: openai }, 200, headers);
   }
 }
 export default {
@@ -211,6 +268,7 @@ export default {
       }
     }
     if (request.method === "POST" && url.pathname === "/api/tts") return handleTts(request, env, headers);
+    if (request.method === "GET" && url.pathname === "/api/tts/voices") return handleTtsVoices(request, env, headers);
     if (request.method === "POST" && (url.pathname === "/api/chat" || url.pathname === "/")) return handleChat(request, env, headers);
     return json({ error: "not_found" }, 404, headers);
   },
