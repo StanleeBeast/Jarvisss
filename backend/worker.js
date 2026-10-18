@@ -19,6 +19,7 @@ import { handleStudyApi } from "./study.js";
 import { handleMessagesApi } from "./messages.js";
 import { handlePlannerApi } from "./planner.js";
 import { handleCalendarApi, calendarStatus } from "./calendar.js";
+import { handleMailApi, stationStatus } from "./mail.js";
 
 const TTS_VOICES = ["alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse"];
 const DEFAULT_TTS_VOICE = "coral";
@@ -123,7 +124,8 @@ async function systemStatus(env, principal) {
       sync: access.devices.state === "available"
         ? { state: "available", detail: "Aufgaben und Gedächtnis: geräteübergreifend. Profil, Stimme und Design: weiterhin nur lokal.", verified: true }
         : { state: "not_available", detail: "Profil, Gedächtnis und Design liegen nur lokal im Browser." },
-      messaging: { state: "manual_only", detail: "Kein Zugriff auf WhatsApp oder E-Mail. Ausgewählte Chats importierst du selbst (Chat exportieren oder einfügen); Antworten sind Entwürfe, die du selbst sendest." }
+      mail: await stationStatus(env),
+      messaging: { state: "manual_only", detail: "Kein Zugriff auf WhatsApp. Ausgewählte Chats importierst du selbst (Chat exportieren oder einfügen); Antworten sind Entwürfe, die du selbst sendest. E-Mail: siehe Home-Station." }
     }
   };
 }
@@ -257,6 +259,8 @@ export default {
     if (calendarResponse) return calendarResponse;
     const plannerResponse = await handlePlannerApi(request, env, headers, url);
     if (plannerResponse) return plannerResponse;
+    const mailResponse = await handleMailApi(request, env, headers, url);
+    if (mailResponse) return mailResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
       const auth = await authenticate(request, env, headers);
       if (auth.response) return auth.response;

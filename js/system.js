@@ -8,18 +8,18 @@
   const CORE_LABELS = { idle: 'BEREIT', listening: 'ZUHÖREN', processing: 'VERARBEITE', speaking: 'SPRICHT', success: 'BESTÄTIGT', warning: 'HINWEIS', offline: 'OFFLINE', error: 'FEHLER' };
   const STATE_TEXT = {
     available: 'Verfügbar', connected: 'Verbunden', configured: 'Eingerichtet', not_configured: 'Noch nicht eingerichtet',
-    migration_missing: 'Migration fehlt', unreachable: 'Nicht erreichbar', error: 'Fehler', manual_only: 'Nur manuell', read_only: 'Nur lesen',
+    migration_missing: 'Migration fehlt', unreachable: 'Nicht erreichbar', error: 'Fehler', manual_only: 'Nur manuell', read_only: 'Nur lesen', warning: 'Mit Hinweis',
     in_development: 'In Entwicklung', not_available: 'Nicht verfügbar', permission_missing: 'Berechtigung fehlt', unknown: 'Unbekannt'
   };
   const STATE_TONE = {
     available: 'ok', connected: 'ok', configured: 'info', not_configured: 'warn', migration_missing: 'warn', unreachable: 'error',
-    error: 'error', manual_only: 'warn', read_only: 'ok', in_development: 'warn', not_available: 'muted', permission_missing: 'warn', unknown: 'muted'
+    error: 'error', manual_only: 'warn', read_only: 'ok', warning: 'warn', in_development: 'warn', not_available: 'muted', permission_missing: 'warn', unknown: 'muted'
   };
   const COMPONENT_LABELS = {
     frontend: 'Frontend', network: 'Internetverbindung', serviceWorker: 'PWA · Offline-Cache', localStore: 'Lokaler Speicher',
     speechInput: 'Spracheingabe', microphone: 'Mikrofon-Berechtigung', systemVoice: 'Systemstimme', backend: 'Backend (Cloudflare Worker)',
     auth: 'Zugang', ai: 'KI-Modell', tts: 'KI-Stimme', news: 'Nachrichtenrecherche', storage: 'Datenbank (D1)', tasks: 'Aufgaben-API',
-    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', costs: 'Kosten & Tageslimit', push: 'Benachrichtigungen', scheduler: 'Zeitplaner', study: 'Lernassistent', planner: 'Tagesplaner', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp/E-Mail)'
+    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', costs: 'Kosten & Tageslimit', push: 'Benachrichtigungen', scheduler: 'Zeitplaner', study: 'Lernassistent', planner: 'Tagesplaner', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp)', mail: 'E-Mail & Home-Station'
   };
   const ERROR_TEXT = {
     no_endpoint: 'Kein Backend eingetragen (Einstellungen → Stimme & KI).',
@@ -58,6 +58,14 @@
     planner_storage_unavailable: 'Der Tagesplaner-Speicher antwortet nicht (Migration 0007 angewendet?).',
     message_storage_unavailable: 'Der Speicher für Nachrichten-Auswertungen antwortet nicht (Migration 0006 angewendet?).',
     message_import_not_found: 'Diese Auswertung gibt es nicht mehr.',
+    mail_storage_unavailable: 'Der Mail-Speicher antwortet nicht (Migration 0009 angewendet?).',
+    mail_not_found: 'Diese Mail gibt es in JARVIS nicht mehr.',
+    mail_already_sending: 'Diese Antwort wird bereits gesendet.',
+    mail_suspicious: 'Diese Mail steht unter Betrugsverdacht – JARVIS antwortet darauf nicht.',
+    reply_text_required: 'Bitte einen Antworttext eingeben.',
+    confirmation_required: 'Der Versand muss ausdrücklich bestätigt werden.',
+    nothing_to_cancel: 'Die Home-Station hat den Versand schon übernommen – Abbrechen ist nicht mehr möglich.',
+    station_device_required: 'Dieser Zugang ist nur für die gekoppelte Home-Station.',
     unauthorized: 'Das Zugangstoken wird vom Backend abgelehnt.',
     backend_not_configured: 'Im Worker fehlen Secrets (JARVIS_ACCESS_TOKEN bzw. OPENAI_API_KEY).',
     storage_not_configured: 'Die D1-Datenbank ist noch nicht eingerichtet.',
