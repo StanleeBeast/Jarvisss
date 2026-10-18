@@ -4,12 +4,14 @@
 // - Gespeichert werden nur deine Vorlieben (user_settings 'planner_prefs') und die Änderungen für einen
 //   Tag (day_plans.overrides), z. B. „Sport fällt heute aus“ oder „mehr Freizeit“.
 // - Änderungen schlägt der Agent nur vor (propose_plan_change); gespeichert wird erst nach deiner Bestätigung.
-// - Ein Kalender ist nicht verbunden. Termine kennt JARVIS nur als Aufgaben mit Uhrzeit oder feste Blöcke.
+// - Kalender: nur lesend über einen freigegebenen Abo-Link (calendar.js). Ohne ihn kennt JARVIS Termine nur als
+//   Aufgaben mit Uhrzeit oder feste Blöcke.
 import { json, clip, readJsonBody, audit } from "./http.js";
 import { authenticate, actorOf } from "./auth.js";
 import { listTasks } from "./tasks.js";
 import { getRoutines, localParts } from "./scheduler.js";
 import { safeTimezone, localToUtc } from "./time.js";
+import { calendarConfigured, getCalendarEvents, eventsOnDay } from "./calendar.js";
 
 export const BLOCK_KINDS = ["school", "work", "sport", "routine", "other"];
 export const DEFAULT_PREFS = {
@@ -101,7 +103,7 @@ function freeIntervals(from, to, busy) {
 }
 
 // Baut den Plan für einen Tag. Alle Zeiten sind Minuten seit Mitternacht in der Zeitzone des Nutzers.
-export function buildDayPlan({ date, timezone, prefs = DEFAULT_PREFS, overrides = {}, tasks = [], routines = {}, nowMs = Date.now() }) {
+export function buildDayPlan({ date, timezone, prefs = DEFAULT_PREFS, overrides = {}, tasks = [], routines = {}, calendar = null, nowMs = Date.now() }) {
   const tz = safeTimezone(timezone);
   const today = localParts(nowMs, tz);
   const weekday = weekdayOf(date);
@@ -132,8 +134,20 @@ export function buildDayPlan({ date, timezone, prefs = DEFAULT_PREFS, overrides 
     else push({ id, kind: "routine", title: "Morgenbriefing", start: s, end: s + 10, fixed: true, source: "routine" });
   }
 
-  // 3. Aufgaben mit Uhrzeit an diesem Tag sind feste Termine.
   const dayStart = localToUtc(date + "T00:00", tz), dayEnd = localToUtc(nextDate(date) + "T00:00", tz);
+  // 2b. Termine aus dem verbundenen Kalender (nur lesen) sind feste Blöcke; ganztägige erscheinen als Hinweis.
+  const allDay = [];
+  for (const e of calendar?.events || []) {
+    if (e.allDay) { allDay.push({ title: e.title, location: e.location || "" }); continue; }
+    const s = e.start <= dayStart ? 0 : localParts(Date.parse(e.start), tz).minutes;
+    const en = e.end >= dayEnd ? 24 * 60 - 1 : localParts(Date.parse(e.end), tz).minutes;
+    if (en <= s) continue;
+    const id = blockId("kalender " + e.title, toHHMM(s));
+    if (skip.has(id)) { skipped.push({ id, title: e.title, startTime: toHHMM(s), endTime: toHHMM(en) }); continue; }
+    push({ id, kind: "calendar", title: e.title, location: e.location || "", start: s, end: en, fixed: true, source: "calendar" });
+  }
+
+  // 3. Aufgaben mit Uhrzeit an diesem Tag sind feste Termine.
   const minutesFor = (t) => prefs.taskMinutes?.[t.priority] || 30;
   const flexible = [];
   for (const t of tasks) {
@@ -185,7 +199,10 @@ export function buildDayPlan({ date, timezone, prefs = DEFAULT_PREFS, overrides 
     if (!placed) unscheduled.push({ id: t.id, title: t.title, priority: t.priority, minutes: need });
   }
   // 5. Verbleibende Lücken und reservierte Zeit als Freizeit zeigen.
-  for (const slot of [...free, ...reservedBlocks]) {
+  // Aneinandergrenzende freie Zeit (Lücke + reservierter Abend) zu einem Block zusammenfassen.
+  const freeSlots = [...free, ...reservedBlocks].filter(x => x.end > x.start).sort((a, b) => a.start - b.start)
+    .reduce((acc, x) => { const last = acc[acc.length - 1]; if (last && x.start <= last.end) last.end = Math.max(last.end, x.end); else acc.push({ start: x.start, end: x.end }); return acc; }, []);
+  for (const slot of freeSlots) {
     if (slot.end - slot.start >= GAP_MIN) push({ id: "frei-" + toHHMM(slot.start).replace(":", ""), kind: "free", title: "Freizeit", start: slot.start, end: slot.end, fixed: false, source: "planner" });
   }
   blocks.sort((a, b) => a.start - b.start || a.end - b.end);
@@ -193,6 +210,7 @@ export function buildDayPlan({ date, timezone, prefs = DEFAULT_PREFS, overrides 
   const fixedBlocks = blocks.filter(b => b.fixed);
   for (let i = 1; i < fixedBlocks.length; i++) if (fixedBlocks[i].start < fixedBlocks[i - 1].end) notes.push("„" + fixedBlocks[i - 1].title + "“ und „" + fixedBlocks[i].title + "“ überschneiden sich.");
   if (isPast) notes.push("Dieser Tag liegt in der Vergangenheit; offene Aufgaben werden nicht mehr eingeplant.");
+  if (calendar?.error) notes.push("Der Kalender konnte gerade nicht gelesen werden (" + calendar.error + ")" + (calendar.stale ? "; es werden die zuletzt geladenen Termine verwendet." : "."));
   if (!prefs.fixed?.length) notes.push("Noch keine festen Zeiten (Schule, Arbeit, Sport) eingetragen. Das geht unter „Tagesplan → Mein Rhythmus“.");
 
   const sum = (kind) => blocks.filter(b => b.kind === kind).reduce((n, b) => n + (b.end - b.start), 0);
@@ -207,7 +225,9 @@ export function buildDayPlan({ date, timezone, prefs = DEFAULT_PREFS, overrides 
     current: current && { id: current.id, title: current.title, kind: current.kind, endTime: current.endTime },
     next: next && { id: next.id, title: next.title, kind: next.kind, startTime: next.startTime },
     overrides: { skip: [...skip], added: overrides.added || [], extraFreeMinutes: overrides.extraFreeMinutes || 0, note: overrides.note || "" },
-    calendar: "not_connected"
+    allDay,
+    calendar: calendar ? (calendar.error ? "error" : "read_only") : "not_connected",
+    calendarFetchedAt: calendar?.fetchedAt || null
   };
 }
 function nextDate(date) {
@@ -236,7 +256,15 @@ export async function loadDayPlan(env, date, timezone, nowMs = Date.now()) {
   const [{ prefs }, overrides, tasks, routines] = await Promise.all([
     getPrefs(db), getOverrides(db, date), listTasks(db, "open", 100), getRoutines(db).catch(() => ({}))
   ]);
-  return buildDayPlan({ date, timezone, prefs, overrides, tasks, routines, nowMs });
+  let calendar = null;
+  if (await calendarConfigured(db)) {
+    try {
+      const tz = safeTimezone(timezone);
+      const res = await getCalendarEvents(env, { timezone: tz });
+      calendar = { events: eventsOnDay(res.events, date, tz), error: res.error || null, stale: Boolean(res.stale), fetchedAt: res.fetchedAt || null };
+    } catch { calendar = { events: [], error: "calendar_unavailable" }; }
+  }
+  return buildDayPlan({ date, timezone, prefs, overrides, tasks, routines, calendar, nowMs });
 }
 export function todayIn(timezone, nowMs = Date.now()) {
   return localParts(nowMs, safeTimezone(timezone)).day;

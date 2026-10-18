@@ -12,6 +12,7 @@ import { authenticate, actorOf } from "./auth.js";
 import { notifyAll } from "./push.js";
 import { getNews } from "./news.js";
 import { listTasks } from "./tasks.js";
+import { calendarConfigured, getCalendarEvents, eventsOnDay } from "./calendar.js";
 
 const DEFAULT_TZ = "Europe/Berlin";
 const DEFAULTS = {
@@ -92,6 +93,12 @@ export async function buildBriefing(env, { include = { weather: true, tasks: tru
       };
     } catch { content.tasks = { error: "task_storage_unavailable" }; }
   }
+  if (include.tasks && env.DB && await calendarConfigured(env.DB)) {
+    try {
+      const res = await getCalendarEvents(env, { timezone: tz, now });
+      content.calendar = { events: eventsOnDay(res.events, today, tz).slice(0, 10).map(e => ({ title: e.title, allDay: e.allDay, start: e.start, end: e.end, location: e.location || "" })), error: res.error || null };
+    } catch { content.calendar = { error: "calendar_unavailable" }; }
+  }
   if (include.news) {
     content.news = [];
     for (const section of ["local", "saxony", "germany", "world"]) {
@@ -109,6 +116,7 @@ export async function buildBriefing(env, { include = { weather: true, tasks: tru
 function briefingTeaser(content) {
   const parts = [];
   if (content.weather && !content.weather.error) parts.push(Math.round(content.weather.minC) + "–" + Math.round(content.weather.maxC) + " °C, " + content.weather.condition);
+  if (content.calendar && !content.calendar.error && content.calendar.events.length) parts.push(content.calendar.events.length + (content.calendar.events.length === 1 ? " Termin" : " Termine"));
   if (content.tasks && !content.tasks.error) parts.push(content.tasks.dueToday.length + " heute fällig" + (content.tasks.overdue.length ? ", " + content.tasks.overdue.length + " überfällig" : ""));
   return parts.join(" · ") || "Tippe, um es zu öffnen.";
 }
