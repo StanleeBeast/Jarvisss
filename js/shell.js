@@ -6,6 +6,7 @@
   const TABS = [
     { id: 'system', label: 'System', view: 'view-system' },
     { id: 'day', label: 'Tagesplan', view: 'view-day' },
+    { id: 'mail', label: 'Mails', view: 'view-mail' },
     { id: 'tasks', label: 'Aufgaben', view: 'view-tasks' },
     { id: 'study', label: 'Lernen', view: 'view-study' },
     { id: 'messages', label: 'Nachrichten', view: 'view-messages' },
@@ -66,6 +67,7 @@
     if (tab.id === 'automation') window.JarvisAutomation?.load();
     if (tab.id === 'study') window.JarvisStudy?.load();
     if (tab.id === 'messages') window.JarvisMessages?.load();
+    if (tab.id === 'mail') window.JarvisMail?.load();
     if (tab.id === 'day') window.JarvisPlanner?.load({ prefs: true });
     if (tab.id === 'memory') window.JarvisMemory?.sync();
     if (tab.id === 'assistant') renderChat();
