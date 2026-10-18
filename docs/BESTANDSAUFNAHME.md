@@ -72,9 +72,9 @@ Legende: ✅ vorhanden und getestet · 🟡 vorhanden, nicht ausreichend geteste
 | Sich selbst im Hintergrund öffnen, mithören | ⛔ | Auf iPadOS für Web-Apps nicht möglich. Ersatz: Benachrichtigung antippen oder Kurzbefehl. |
 
 ### Sprache
-| ElevenLabs-Stimme | ✅ | Ist das GitHub-Secret `ELEVENLABS_API_KEY` gesetzt, spricht JARVIS mit ElevenLabs. Stimmen aus deinem Konto (inkl. eigener) sind unter Stimme & KI wählbar, mit kostenloser Hörprobe; „Beste Qualität“ (Multilingual v2) oder „Schnell & günstiger“ (Flash v2.5). Scheitert ElevenLabs, spricht OpenAI und die App sagt das. Der Schlüssel bleibt im Worker. Getestet: 4 Backend-Tests, 9 Browserprüfungen mit simuliertem Konto. Mit echtem Konto noch nicht live getestet. |
 | Funktion | Status | Anmerkung |
 |---|---|---|
+| ElevenLabs-Stimme | ✅ | Ist das GitHub-Secret `ELEVENLABS_API_KEY` gesetzt, spricht JARVIS mit ElevenLabs. Stimmen aus deinem Konto (inkl. eigener) sind unter Stimme & KI wählbar, mit kostenloser Hörprobe; „Beste Qualität“ (Multilingual v2) oder „Schnell & günstiger“ (Flash v2.5). Scheitert ElevenLabs, spricht OpenAI und die App sagt das. Der Schlüssel bleibt im Worker. Getestet: 4 Backend-Tests, 9 Browserprüfungen mit simuliertem Konto. Mit echtem Konto noch nicht live getestet. |
 | KI-Stimme (OpenAI `gpt-4o-mini-tts`) | ✅ | Stimme wählbar (Allow-List), stoppbar, mit Zeitlimit, Rückfall auf Systemstimme. |
 | Systemstimme | 🟡 | Stimme, Tempo, Tonhöhe, Lautstärke. Klang hängt vom Gerät ab. |
 | Spracheingabe | 🟡 | Echter Mikrofonzustand, genaue Fehlermeldungen, optional „vor dem Senden prüfen“. Test auf iPad-Safari steht aus. |
