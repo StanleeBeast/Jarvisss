@@ -123,7 +123,7 @@ export async function handleMessagesApi(request, env, headers, url) {
       } catch (e) { return json({ error: e?.name === "TimeoutError" ? "model_timeout" : "model_unreachable" }, 502, headers); }
       if (!res.ok) return json({ error: await modelError(res) }, 502, headers);
       const data = await res.json();
-      await addUsage(env, { chatRequests: 1, promptTokens: Number(data?.usage?.prompt_tokens) || 0, completionTokens: Number(data?.usage?.completion_tokens) || 0 });
+      await addUsage(env, { chatRequests: 1, model: env.OPENAI_MODEL || "gpt-4.1-mini", promptTokens: Number(data?.usage?.prompt_tokens) || 0, completionTokens: Number(data?.usage?.completion_tokens) || 0 });
       const msg = data?.choices?.[0]?.message;
       if (msg?.refusal) return json({ error: "model_refused" }, 502, headers);
       let parsed;

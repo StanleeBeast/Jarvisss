@@ -98,7 +98,7 @@ async function classify(env, mails, rules, tz) {
   } catch (e) { return { error: e?.name === "TimeoutError" ? "model_timeout" : "model_unreachable" }; }
   if (!res.ok) return { error: await modelError(res) };
   const data = await res.json();
-  await addUsage(env, { chatRequests: 1, promptTokens: Number(data?.usage?.prompt_tokens) || 0, completionTokens: Number(data?.usage?.completion_tokens) || 0 });
+  await addUsage(env, { chatRequests: 1, model: env.OPENAI_MODEL || "gpt-4.1-mini", promptTokens: Number(data?.usage?.prompt_tokens) || 0, completionTokens: Number(data?.usage?.completion_tokens) || 0 });
   let parsed;
   try { parsed = JSON.parse(data?.choices?.[0]?.message?.content || ""); } catch { return { error: "invalid_model_output" }; }
   const byIndex = new Map();

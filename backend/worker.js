@@ -12,7 +12,7 @@ import { handleMemoriesApi } from "./memories.js";
 import { handleTasksApi } from "./tasks.js";
 import { getNews } from "./news.js";
 import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL } from "./agent.js";
-import { checkBudget, addUsage, handleUsageApi, getUsage, limits } from "./usage.js";
+import { checkBudget, addUsage, handleUsageApi, getUsage, limits, budgetState, EXTRA_COST } from "./usage.js";
 import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
 import { handleStudyApi } from "./study.js";
@@ -83,8 +83,9 @@ async function studyStatus(env) {
 async function costStatus(env) {
   if (!env.DB) return { state: "not_configured", detail: "Ohne D1 werden KI-Aufrufe nicht gezählt und es gibt kein Tageslimit im Worker. Setze ein Budget beim KI-Anbieter." };
   try {
-    const u = await getUsage(env.DB), max = limits(env);
-    return { state: "available", detail: "Heute: " + u.chatRequests + "/" + max.chatRequests + " KI-Anfragen, " + (u.promptTokens + u.completionTokens) + "/" + max.tokens + " Tokens, " + u.ttsChars + "/" + max.ttsChars + " Zeichen Sprachausgabe.", verified: true };
+    const u = await getUsage(env.DB), max = limits(env), b = await budgetState(env);
+    const month = "Monat: ca. " + b.spentUsd.toFixed(2) + " $ von " + b.limitUsd.toFixed(2) + " $" + (b.level === "saving" ? " – Sparmodus (günstigeres Modell, keine Websuche)" : b.level === "exhausted" ? " – Grenze erreicht, KI pausiert bis Monatsende" : "") + ". ";
+    return { state: b.level === "exhausted" ? "warning" : "available", detail: month + "Heute: " + u.chatRequests + "/" + max.chatRequests + " KI-Anfragen, " + (u.promptTokens + u.completionTokens) + "/" + max.tokens + " Tokens, " + u.ttsChars + "/" + max.ttsChars + " Zeichen Sprachausgabe.", verified: true };
   } catch {
     return { state: "migration_missing", detail: "Tabelle usage_daily fehlt. Migration 0003 anwenden (Deploy-Workflow erneut ausführen)." };
   }
@@ -193,9 +194,10 @@ async function handleTts(request, env, headers) {
       if (!env.OPENAI_API_KEY) return json({ error: upstream?.status === 401 ? "tts_key_invalid" : upstream?.status === 429 ? "tts_rate_limited" : "tts_request_failed" }, 502, headers);
     }
     const voice = TTS_VOICES.includes(requested) ? requested : DEFAULT_TTS_VOICE;
+    if ((await budgetState(env)).level === "exhausted") return json({ error: "monthly_budget_reached" }, 429, headers); // Gerät spricht dann mit der Systemstimme
     const upstream = await openaiSpeech(env, input, voice);
     if (!upstream.ok) return json({ error: upstream.status === 429 ? "tts_rate_limited" : "tts_request_failed", status: upstream.status }, 502, headers);
-    await addUsage(env, { ttsRequests: 1, ttsChars: input.length });
+    await addUsage(env, { ttsRequests: 1, ttsChars: input.length, costUsd: input.length * EXTRA_COST.openaiTtsPerChar });
     return audioResponse(upstream, headers, wantsEleven ? "openai-fallback" : "openai");
   } catch (error) {
     return json({ error: isTimeout(error) ? "tts_timeout" : "tts_unreachable" }, 502, headers);
@@ -246,7 +248,7 @@ async function handleStt(request, env, headers) {
     const res = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { "Authorization": "Bearer " + env.OPENAI_API_KEY }, body: form, signal: AbortSignal.timeout(30000) });
     if (!res.ok) return json({ error: await modelError(res) }, 502, headers);
     const data = await res.json();
-    await addUsage(env, { chatRequests: 1 });
+    await addUsage(env, { chatRequests: 1, costUsd: EXTRA_COST.stt });
     return json({ text: clip(String(data.text || ""), 2000).trim() }, 200, headers);
   } catch (error) {
     return json({ error: isTimeout(error) ? "model_timeout" : "model_unreachable" }, 502, headers);

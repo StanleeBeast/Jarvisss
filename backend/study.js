@@ -95,7 +95,7 @@ async function generate(env, req) {
   });
   if (!res.ok) return { error: await modelError(res) };
   const body = await res.json();
-  await addUsage(env, { chatRequests: 1, promptTokens: Number(body?.usage?.prompt_tokens) || 0, completionTokens: Number(body?.usage?.completion_tokens) || 0 });
+  await addUsage(env, { chatRequests: 1, model: env.OPENAI_STUDY_MODEL || env.OPENAI_MODEL || "gpt-4.1-mini", promptTokens: Number(body?.usage?.prompt_tokens) || 0, completionTokens: Number(body?.usage?.completion_tokens) || 0 });
   const message = body?.choices?.[0]?.message;
   if (message?.refusal) return { error: "model_refused" };
   try { return { value: JSON.parse(message?.content || "") }; } catch { return { error: "invalid_model_output" }; }

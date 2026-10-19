@@ -155,7 +155,7 @@
   const grid = el('view-system')?.querySelector('.grid');
   const usagePanel = document.createElement('div');
   usagePanel.className = 'panel';
-  usagePanel.innerHTML = '<h2>€ KOSTEN & NUTZUNG HEUTE</h2><div id="usageBox" class="list"><div class="item"><small>Wird geladen …</small></div></div>'
+  usagePanel.innerHTML = '<h2>€ KOSTEN & NUTZUNG</h2><div id="usageBox" class="list"><div class="item"><small>Wird geladen …</small></div></div>'
     + '<p class="hint">Zählung durch deinen Worker (Tag nach deutscher Zeit). Tageslimits lassen sich über die Worker-Variablen DAILY_MAX_CHAT_REQUESTS, DAILY_MAX_TOKENS und DAILY_MAX_TTS_CHARS ändern. Zusätzlich empfohlen: ein Monatsbudget im OpenAI-Dashboard unter Settings → Limits. Ein ChatGPT-Abo deckt diese API-Kosten nicht ab.</p>';
   const permPanel = document.createElement('div');
   permPanel.className = 'panel';
@@ -191,7 +191,11 @@
     const [usage, tools] = await Promise.all([window.JarvisCore.api('/api/usage'), window.JarvisCore.api('/api/tools')]);
     if (usage.ok && usage.body?.tracked) {
       const u = usage.body.usage, l = usage.body.limits;
+      const b = usage.body.budget;
+      const month = b ? meter('Monat: ca. ' + b.spentUsd.toFixed(2).replace('.', ',') + ' $ von ' + b.limitUsd.toFixed(0) + ' $' + (b.level === 'saving' ? ' · Sparmodus' : b.level === 'exhausted' ? ' · Grenze erreicht' : ''), Math.round(b.spentUsd * 100), Math.round(b.limitUsd * 100)) : null;
+      if (month) month.querySelector('small').textContent = b.level === 'ok' ? 'Volle Qualität bis 80 % der Monatsgrenze. Danach günstigeres Modell ohne Internetsuche, bei 100 % Pause bis zum Monatsersten.' : b.level === 'saving' ? 'Sparmodus: günstigeres Modell, keine Internetsuche – damit der Monat reicht.' : 'Monatsgrenze erreicht: Keine kostenpflichtigen KI-Anfragen bis zum Monatsersten. Uhrzeit, Wetter, Nachrichten, Tagesplan funktionieren weiter.';
       usageBox.replaceChildren(
+        ...(month ? [month] : []),
         meter('KI-Anfragen', u.chatRequests, l.chatRequests),
         meter('Tokens (Ein- und Ausgabe)', u.promptTokens + u.completionTokens, l.tokens),
         meter('Zeichen Sprachausgabe', u.ttsChars, l.ttsChars)

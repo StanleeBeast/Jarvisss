@@ -61,6 +61,7 @@
     planner_storage_unavailable: 'Der Tagesplaner-Speicher antwortet nicht (Migration 0007 angewendet?).',
     message_storage_unavailable: 'Der Speicher für Nachrichten-Auswertungen antwortet nicht (Migration 0006 angewendet?).',
     message_import_not_found: 'Diese Auswertung gibt es nicht mehr.',
+    monthly_budget_reached: 'Die Monatsgrenze von 5 $ ist erreicht. Bis zum Monatsersten keine kostenpflichtigen KI-Anfragen – lokale Funktionen laufen weiter.',
     mail_storage_unavailable: 'Der Mail-Speicher antwortet nicht (Migration 0009 angewendet?).',
     mail_not_found: 'Diese Mail gibt es in JARVIS nicht mehr.',
     mail_already_sending: 'Diese Antwort wird bereits gesendet.',
