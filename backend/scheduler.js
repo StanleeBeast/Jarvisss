@@ -112,6 +112,7 @@ export async function buildBriefing(env, { include = { weather: true, tasks: tru
       try {
         const res = await getNews(section);
         for (const item of (res.items || []).slice(0, 2)) content.news.push({ section, title: item.title, source: item.source, published: item.published, link: item.link });
+        if (!res.items?.length) content.news.push({ section, error: "news_source_unavailable" });
       } catch { content.news.push({ section, error: "news_source_unavailable" }); }
     }
   }
