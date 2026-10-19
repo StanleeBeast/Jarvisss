@@ -9,7 +9,7 @@
     { id: 'comm', label: 'Kommunikation', short: 'Post', icon: '✉', tabs: ['mail', 'messages'] },
     { id: 'learn', label: 'Lernen', icon: '✎', tabs: ['study'] },
     { id: 'jarvis', label: 'JARVIS', icon: '◎', tabs: ['autonomy', 'settings', 'memory', 'automation', 'assistant', 'planner'] },
-    { id: 'system', label: 'System', icon: '⚙', tabs: ['system', 'devices', 'design'] }
+    { id: 'system', label: 'System', icon: '⚙', tabs: ['system', 'devices', 'context', 'design'] }
   ];
   const TABS = [
     { id: 'system', label: 'Status', view: 'view-system' },
@@ -21,6 +21,7 @@
     { id: 'autonomy', label: 'Autonomie', view: 'view-autonomy' },
     { id: 'settings', label: 'Stimme & KI', view: 'view-settings' },
     { id: 'devices', label: 'Geräte', view: 'view-devices' },
+    { id: 'context', label: 'iPhone & iPad', view: 'view-context' },
     { id: 'automation', label: 'Automatisierungen', view: 'view-automation' },
     { id: 'memory', label: 'Gedächtnis', view: 'view-memory' },
     { id: 'planner', label: 'Entwürfe', view: 'view-planner' },
@@ -111,6 +112,7 @@
     if (tab.id === 'messages') window.JarvisMessages?.load();
     if (tab.id === 'mail') window.JarvisMail?.load();
     if (tab.id === 'autonomy') window.JarvisAutonomy?.load();
+    if (tab.id === 'context') window.JarvisContext?.load();
     if (tab.id === 'day') window.JarvisPlanner?.load({ prefs: true });
     if (tab.id === 'memory') window.JarvisMemory?.sync();
     if (tab.id === 'assistant') renderChat();

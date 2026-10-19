@@ -13,6 +13,7 @@ import { handleTasksApi } from "./tasks.js";
 import { getNews } from "./news.js";
 import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL, runAgent } from "./agent.js";
 import { handleAutonomyApi, runAutonomy } from "./autonomy.js";
+import { handleContextApi } from "./context.js";
 import { checkBudget, addUsage, handleUsageApi, getUsage, limits, budgetState, EXTRA_COST } from "./usage.js";
 import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
@@ -302,6 +303,8 @@ export default {
     if (plannerResponse) return plannerResponse;
     const mailResponse = await handleMailApi(request, env, headers, url);
     if (mailResponse) return mailResponse;
+    const contextResponse = await handleContextApi(request, env, headers, url);
+    if (contextResponse) return contextResponse;
     const autonomyResponse = await handleAutonomyApi(request, env, headers, url);
     if (autonomyResponse) return autonomyResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {

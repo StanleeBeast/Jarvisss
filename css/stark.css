@@ -354,3 +354,11 @@ body.jarvis-handsfree #n1Mic{border-color:var(--good)!important;color:var(--good
 .auto-quiet{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
 @media(max-width:600px){.auto-job{grid-template-columns:auto 1fr}.auto-job-field{grid-column:2}}
 body.n1-settings-open .hf-pill{display:none!important}
+/* iPhone & iPad (Kurzbefehle) */
+.ctx-key{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+.ctx-key code,.ctx-guide code{padding:4px 8px;background:var(--panel-2);border:1px solid var(--line);font-size:12px;overflow-wrap:anywhere;max-width:100%}
+.ctx-steps{padding-left:20px;line-height:1.6}
+.ctx-steps ul{padding-left:18px;margin:4px 0}
+.ctx-recipe{padding:10px 0;border-top:1px solid var(--line)}
+.ctx-recipe b{display:block;color:var(--gold-hi)}
+.ctx-recipe small{display:block;color:var(--muted);font-size:12px;line-height:1.45}
