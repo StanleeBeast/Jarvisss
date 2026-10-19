@@ -16,6 +16,7 @@ import { listStudySets } from "./study.js";
 import { recentMessageInsights } from "./messages.js";
 import { getCalendarEvents, calendarConfigured } from "./calendar.js";
 import { importantMails, stationStatus } from "./mail.js";
+import { buildBriefing } from "./scheduler.js";
 import { loadDayPlan, getOverrides, validateOverrides, todayIn, toMinutes, BLOCK_KINDS } from "./planner.js";
 import { safeTimezone, localToUtc, formatLocal } from "./time.js";
 export { safeTimezone, localToUtc, formatLocal };
@@ -203,6 +204,19 @@ export const TOOLS = [
       if (checked.error) return { error: checked.error };
       const result = addProposal(ctx, { type: "update_task", target: { id: row.id, title: row.title }, payload: changes, dueText: changes.dueAt ? formatLocal(changes.dueAt, ctx.timezone) : null });
       return changes.dueAt ? { ...result, due_confirmed_as: formatLocal(changes.dueAt, ctx.timezone) } : result;
+    }
+  },
+  {
+    name: "get_briefing",
+    description: "Holt in EINEM Schritt alles für ein Briefing oder einen Tagesüberblick: Wetter, fällige und überfällige Aufgaben, Kalendertermine heute, wichtige Mails und je zwei Schlagzeilen aus Region, Sachsen, Deutschland und Welt. Für „Briefing“, „Was steht heute an?“, „Gib mir einen Überblick“.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    category: "A", access: "read", requiresConfirmation: false, timeoutMs: 20000,
+    available: () => true,
+    run: async (_args, ctx) => {
+      try {
+        const { content } = await buildBriefing(ctx.env, { timezone: ctx.timezone, store: false });
+        return { ...content, note: "Fasse das als kurzes, gesprochenes Briefing zusammen: Begrüßung, Wetter, was heute ansteht (Termine, fällige Aufgaben), wichtige Mails, dann die Nachrichten zuerst aus der Region. Quellen kurz nennen. Fehlendes ehrlich erwähnen." };
+      } catch { return { error: "briefing_unavailable" }; }
     }
   },
   {
@@ -509,7 +523,7 @@ function systemPrompt(payload, tools, timezone, ctx) {
       ? "Erinnerungen: Eine bestätigte Aufgabe mit Fälligkeit löst zur Uhrzeit eine Push-Benachrichtigung aus (der Zeitplaner prüft alle 5 Minuten, also bis zu 5 Minuten später). Das ist kein lauter Wecker."
       : "Erinnerungen: Ein Vorschlag legt eine Aufgabe mit Fälligkeit an. Push-Benachrichtigungen sind auf keinem Gerät eingerichtet oder die Aufgaben-Erinnerungen sind ausgeschaltet – sag ehrlich, dass zur Uhrzeit nichts klingelt, und verweise auf Einstellungen → Automatisierungen.",
     "Wecker: Für \"weck mich um …\" nutze propose_alarm. Du kannst keinen Wecker selbst stellen und nicht prüfen, ob er gestellt wurde; der Nutzer tippt auf den Vorschlag, der den Kurzbefehl startet, und prüft in der Uhr-App. Ein gewünschtes Briefing danach kannst du zusätzlich als Aufgabe mit Fälligkeit vorschlagen.",
-    "Planung: Für Aufträge wie \"Bereite meinen Tag vor\" zerlegst du die Aufgabe selbst in Schritte: Uhrzeit, Wetter, offene Aufgaben, Nachrichten (zuerst lokal/Sachsen, dann Deutschland, dann Welt). Erstelle daraus einen kurzen, priorisierten Plan mit Begründung, plane Pausen ein und nenne fehlende Informationen (z. B. Kalender ist nicht verbunden).",
+    "Briefing: Für „Briefing“, „Überblick“ oder „Was steht heute an?“ nutze get_briefing (ein einziger Aufruf liefert alles) und fasse es kurz zusammen. Planung: Für Aufträge wie \"Bereite meinen Tag vor\" zerlegst du die Aufgabe selbst in Schritte: Uhrzeit, Wetter, offene Aufgaben, Nachrichten (zuerst lokal/Sachsen, dann Deutschland, dann Welt). Erstelle daraus einen kurzen, priorisierten Plan mit Begründung, plane Pausen ein und nenne fehlende Informationen (z. B. Kalender ist nicht verbunden).",
     tools.some(t => t.name === "get_day_plan")
       ? "Tagesplan: Für Fragen zum Tag nutze get_day_plan (berechnet aus Aufgaben, festen Zeiten, Routinen und Pausen). Sagt der Nutzer z. B. \"Sport fällt heute aus\", \"Ich brauche heute mehr Freizeit\" oder \"Heute Abend Training von 18 bis 19 Uhr\", hole zuerst get_day_plan und nutze dann propose_plan_change. Erst nach seiner Bestätigung ändert sich der Plan. Verschiebe Aufgaben dabei nicht eigenmächtig."
       : "Tagesplan: Ohne Datenbank gibt es keinen gespeicherten Tagesplan.",

@@ -70,3 +70,22 @@ test("remember stores what the user says, skips duplicates and secrets, respects
   await withFetch(async (url, o) => { const b = JSON.parse(o.body); outs = b.messages.filter(m => m.role === "tool").map(m => JSON.parse(m.content)); return Response.json(i++ === 0 ? step(tc("c", "remember", { text: "Mag Pizza", kind: "preference" })) : say("ok")); }, () => chat(env, "Ich mag Pizza", { profile: { autoMemory: false } }));
   assert.equal(outs[0].error, "auto_memory_off");
 });
+
+test("briefing comes in one tool call with weather, tasks and news gathered in parallel", async () => {
+  const env = makeEnv();
+  await env.DB.prepare("INSERT INTO tasks (id, title, details, status, priority, due_at, created_at, updated_at, created_by) VALUES ('t1', 'Mathe lernen', '', 'open', 'high', ?, ?, ?, 'test')").bind(new Date(Date.now() + 3600e3).toISOString(), new Date().toISOString(), new Date().toISOString()).run().catch(() => null);
+  let i = 0, out, sys;
+  const r = await withFetch(async (url, o) => {
+    const u = String(url);
+    if (u.includes("open-meteo")) return Response.json({ current: { temperature_2m: 8, weather_code: 3 }, daily: { temperature_2m_max: [12], temperature_2m_min: [4], precipitation_probability_max: [20] } });
+    if (!u.includes("api.openai.com")) return new Response("<rss><channel><item><title>Kamenz: Meldung</title><link>https://example.org/" + Math.random() + "</link><pubDate>" + new Date().toUTCString() + "</pubDate></item></channel></rss>");
+    const b = JSON.parse(o.body); sys = b.messages[0].content;
+    const t = b.messages.find(m => m.role === "tool"); if (t) out = JSON.parse(t.content);
+    return Response.json(i++ === 0 ? step(tc("b", "get_briefing", {})) : say("Guten Morgen! 8 Grad, bedeckt."));
+  }, () => chat(env, "Gib mir mein Morgenbriefing"));
+  assert.equal(r.body.reply, "Guten Morgen! 8 Grad, bedeckt.");
+  assert.match(sys, /get_briefing/);
+  assert.equal(out.weather.nowC, 8);
+  assert.deepEqual([...new Set(out.news.filter(n => !n.error).map(n => n.section))], ["local", "saxony", "germany", "world"]);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM briefings").get().n, 0, "agent briefing is not stored");
+});
