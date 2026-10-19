@@ -11,11 +11,15 @@
   box.className = 'voice-extra';
   box.innerHTML = '<label class="hint">Sprechweise<select id="ttsMode"><option value="quality">Beste Qualität (ElevenLabs Multilingual v2)</option><option value="fast">Schnell &amp; günstiger (ElevenLabs Flash v2.5)</option></select></label>'
     + '<div class="voice-actions"><button type="button" id="voicePreview">Hörprobe (kostenlos)</button></div>'
+    + '<label class="hint"><input type="checkbox" id="convMode" style="width:auto;margin-right:8px">Gesprächsmodus: Nach einer gesprochenen Frage hört JARVIS nach seiner Antwort automatisch wieder zu</label>'
     + '<p class="hint" id="voiceState">Stimmen werden geladen …</p>';
   select.closest('label')?.after(box);
   const mode = el('ttsMode');
   mode.value = data.profile.ttsMode || 'quality';
   mode.onchange = () => { data.profile.ttsMode = mode.value; saveData(); toast('Sprechweise gespeichert.'); };
+  const conv = el('convMode');
+  conv.checked = data.profile.conversation !== false;
+  conv.onchange = () => { data.profile.conversation = conv.checked; saveData(); toast(conv.checked ? 'Gesprächsmodus an.' : 'Gesprächsmodus aus.'); };
 
   function option(v) {
     const o = document.createElement('option');

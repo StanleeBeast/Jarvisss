@@ -6,7 +6,7 @@
 // Module: http.js (Helfer), auth.js (Gerätesitzungen), tasks.js, memories.js, news.js,
 // agent.js (Werkzeuge und Agentenschleife), usage.js (Tageslimits).
 
-import { json, clip, readJsonBody } from "./http.js";
+import { json, clip, readJsonBody, modelError } from "./http.js";
 import { authenticate, handleAuthApi, authStatus } from "./auth.js";
 import { handleMemoriesApi } from "./memories.js";
 import { handleTasksApi } from "./tasks.js";
@@ -221,6 +221,37 @@ async function handleTtsVoices(request, env, headers) {
     return json({ provider: "elevenlabs", elevenlabs: true, error: "tts_unreachable", voices: openai }, 200, headers);
   }
 }
+// Spracheingabe: Aufnahme vom Gerät → OpenAI-Transkription. Zuverlässiger als die Browser-Spracherkennung,
+// die in iPad-Home-Bildschirm-Apps oft nicht startet oder abbricht. Audio wird nicht gespeichert.
+const STT_TYPES = /^audio\/(mp4|m4a|x-m4a|aac|webm|ogg|mpeg|mp3|wav|x-wav)(;.*)?$/i;
+const STT_MAX_BYTES = 8 * 1024 * 1024;
+async function handleStt(request, env, headers) {
+  const auth = await authenticate(request, env, headers, { needsModel: true });
+  if (auth.response) return auth.response;
+  const type = (request.headers.get("Content-Type") || "").trim();
+  if (!STT_TYPES.test(type)) return json({ error: "invalid_audio_type" }, 415, headers);
+  if (Number(request.headers.get("Content-Length") || 0) > STT_MAX_BYTES) return json({ error: "audio_too_large" }, 413, headers);
+  const audio = await request.arrayBuffer();
+  if (audio.byteLength > STT_MAX_BYTES) return json({ error: "audio_too_large" }, 413, headers);
+  if (audio.byteLength < 800) return json({ text: "", empty: true }, 200, headers);
+  const budget = await checkBudget(env, "chat");
+  if (!budget.ok) return json({ error: budget.error }, 429, headers);
+  const ext = /webm/i.test(type) ? "webm" : /ogg/i.test(type) ? "ogg" : /wav/i.test(type) ? "wav" : /mpeg|mp3/i.test(type) ? "mp3" : "m4a";
+  const form = new FormData();
+  form.append("file", new Blob([audio], { type: type.split(";")[0] }), "sprache." + ext);
+  form.append("model", env.OPENAI_STT_MODEL || "gpt-4o-mini-transcribe");
+  form.append("language", "de");
+  form.append("prompt", "Gespräch mit dem persönlichen Assistenten JARVIS. Orte: Miltitz, Nebelschütz, Kamenz, Bautzen. Begriffe: Tagesplan, Briefing, Aufgabe, Erinnerung, Mail.");
+  try {
+    const res = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { "Authorization": "Bearer " + env.OPENAI_API_KEY }, body: form, signal: AbortSignal.timeout(30000) });
+    if (!res.ok) return json({ error: await modelError(res) }, 502, headers);
+    const data = await res.json();
+    await addUsage(env, { chatRequests: 1 });
+    return json({ text: clip(String(data.text || ""), 2000).trim() }, 200, headers);
+  } catch (error) {
+    return json({ error: isTimeout(error) ? "model_timeout" : "model_unreachable" }, 502, headers);
+  }
+}
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
@@ -271,6 +302,7 @@ export default {
         return json({ error: "news_source_unavailable" }, 502, headers);
       }
     }
+    if (request.method === "POST" && url.pathname === "/api/stt") return handleStt(request, env, headers);
     if (request.method === "POST" && url.pathname === "/api/tts") return handleTts(request, env, headers);
     if (request.method === "GET" && url.pathname === "/api/tts/voices") return handleTtsVoices(request, env, headers);
     if (request.method === "POST" && (url.pathname === "/api/chat" || url.pathname === "/")) return handleChat(request, env, headers);
