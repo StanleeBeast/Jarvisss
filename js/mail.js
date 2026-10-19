@@ -44,7 +44,7 @@
     const state = s?.state || 'unknown';
     box.dataset.state = state;
     el('mailStationTitle').textContent = state === 'connected' ? 'Home-Station online' : state === 'warning' ? 'Home-Station online – mit Hinweis' : state === 'unreachable' ? 'Home-Station offline' : state === 'not_configured' ? 'Keine Home-Station gekoppelt' : 'Home-Station';
-    el('mailStationDetail').textContent = s?.detail || '';
+    el('mailStationDetail').textContent = (s?.detail || '').replace(/JARVIS-Backend: ([a-z_]+)/g, (_, code) => errorText(code));
     const setup = el('mailSetup');
     setup.hidden = !['not_configured', 'migration_missing'].includes(state);
     if (setup.hidden) return;

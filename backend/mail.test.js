@@ -186,3 +186,16 @@ test("agent lists mails and only proposes replies; briefing counts important mai
   assert.equal(briefing.result.body.briefing.mail.important.length, 1);
   assert.equal(briefing.result.body.briefing.mail.important[0].from, "Frau Lehmann");
 });
+
+test("model errors are reported honestly: empty OpenAI credit is not called a rate limit", async () => {
+  const env = makeEnv();
+  const token = await station(env);
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: { code: "insufficient_quota", message: "You exceeded your current quota" } }), { status: 429 });
+  try {
+    const r = await ingest(env, token);
+    assert.equal(r.body.error, "model_quota_exhausted");
+  } finally { globalThis.fetch = original; }
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: { code: "rate_limit_exceeded" } }), { status: 429 });
+  try { assert.equal((await ingest(env, token)).body.error, "model_rate_limited"); } finally { globalThis.fetch = original; }
+});

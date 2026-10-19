@@ -50,3 +50,14 @@ export async function audit(db, actor, action, target = null) {
     // Das Protokoll darf die eigentliche Aktion nie verhindern.
   }
 }
+
+// Übersetzt eine fehlgeschlagene Antwort des KI-Anbieters in einen ehrlichen Fehlercode.
+// 429 kann „zu viele Anfragen“ oder „Guthaben aufgebraucht“ (insufficient_quota) bedeuten – das ist ein großer Unterschied.
+export async function modelError(res) {
+  let code = "";
+  try { code = String((await res.json())?.error?.code || ""); } catch { /* kein JSON */ }
+  if (code === "insufficient_quota") return "model_quota_exhausted";
+  if (res.status === 401) return "model_key_invalid";
+  if (res.status === 429) return "model_rate_limited";
+  return "model_request_failed";
+}

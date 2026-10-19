@@ -6,7 +6,7 @@
 //   Betreff, Datum, einen kurzen Auszug, die Zusammenfassung und einen Antwortentwurf – nicht den vollständigen Text.
 // - Gesendet wird nur, wenn der Nutzer in der App ausdrücklich „Senden“ bestätigt. Dann entsteht ein Auftrag, den die
 //   Station abholt und per SMTP ausführt. „Gesendet“ zeigt die App erst, wenn die Station den Versand bestätigt hat.
-import { json, clip, readJsonBody, audit } from "./http.js";
+import { json, clip, readJsonBody, audit, modelError } from "./http.js";
 import { authenticate, actorOf } from "./auth.js";
 import { checkBudget, addUsage } from "./usage.js";
 import { notifyAll } from "./push.js";
@@ -96,7 +96,7 @@ async function classify(env, mails, rules, tz) {
       signal: AbortSignal.timeout(90_000)
     });
   } catch (e) { return { error: e?.name === "TimeoutError" ? "model_timeout" : "model_unreachable" }; }
-  if (!res.ok) return { error: res.status === 429 ? "model_rate_limited" : "model_request_failed" };
+  if (!res.ok) return { error: await modelError(res) };
   const data = await res.json();
   await addUsage(env, { chatRequests: 1, promptTokens: Number(data?.usage?.prompt_tokens) || 0, completionTokens: Number(data?.usage?.completion_tokens) || 0 });
   let parsed;
