@@ -327,3 +327,30 @@ body.jarvis-handsfree #n1Mic{border-color:var(--good)!important;color:var(--good
   .n1-group-label{font-size:0}
   .n1-group-label::after{content:attr(data-short);font-size:10px}
 }
+/* Autonomie */
+.auto-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.auto-title{margin:0 0 4px;font-family:var(--hud-font);letter-spacing:.14em;text-transform:uppercase;color:var(--gold-hi)}
+.auto-feed{display:grid;gap:10px;margin-bottom:14px}
+.auto-entry{position:relative;padding:12px 14px 12px 16px;background:var(--panel);border:1px solid var(--line);clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%)}
+.auto-entry::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold-lo)}
+.auto-entry[data-kind="day_prep"]::before{background:var(--gold)}
+.auto-entry[data-kind="event_soon"]::before,.auto-entry[data-kind="mail_watch"]::before{background:var(--ember)}
+.auto-entry[data-kind="overdue"]::before{background:var(--red)}
+.auto-entry[data-new]::after{content:"NEU";position:absolute;right:14px;top:12px;font-family:var(--hud-font);font-weight:700;font-size:10px;letter-spacing:.16em;color:var(--red)}
+.auto-top{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px}
+.auto-icon{color:var(--gold);font-size:15px}
+.auto-label{font-family:var(--hud-font);font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.auto-time{margin-left:auto;margin-right:40px}
+.auto-entry h4{margin:6px 0 4px;font-size:16px}
+.auto-entry p{margin:0;line-height:1.5;color:var(--text);opacity:.9}
+.auto-actions{display:flex;gap:8px;margin-top:8px}
+.auto-actions button{padding:7px 12px;font-size:13px}
+.auto-proposals{margin-top:10px}
+.auto-settings summary{cursor:pointer;font-family:var(--hud-font);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.auto-job{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.auto-job-text b{display:block}.auto-job-text small{display:block;color:var(--muted);font-size:12px;line-height:1.4}
+.auto-job-field input,.auto-job-field select{min-width:120px}
+.auto-switch input{width:22px;height:22px}
+.auto-quiet{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+@media(max-width:600px){.auto-job{grid-template-columns:auto 1fr}.auto-job-field{grid-column:2}}
+body.n1-settings-open .hf-pill{display:none!important}

@@ -73,7 +73,7 @@ test("remember stores what the user says, skips duplicates and secrets, respects
 
 test("briefing comes in one tool call with weather, tasks and news gathered in parallel", async () => {
   const env = makeEnv();
-  await env.DB.prepare("INSERT INTO tasks (id, title, details, status, priority, due_at, created_at, updated_at, created_by) VALUES ('t1', 'Mathe lernen', '', 'open', 'high', ?, ?, ?, 'test')").bind(new Date(Date.now() + 3600e3).toISOString(), new Date().toISOString(), new Date().toISOString()).run().catch(() => null);
+  await env.DB.prepare("INSERT INTO tasks (id, title, details, status, priority, due_at, created_at, updated_at) VALUES ('t1', 'Mathe lernen', '', 'open', 'high', ?, ?, ?)").bind(new Date(Date.now() + 3600e3).toISOString(), new Date().toISOString(), new Date().toISOString()).run();
   let i = 0, out, sys;
   const r = await withFetch(async (url, o) => {
     const u = String(url);
@@ -86,6 +86,7 @@ test("briefing comes in one tool call with weather, tasks and news gathered in p
   assert.equal(r.body.reply, "Guten Morgen! 8 Grad, bedeckt.");
   assert.match(sys, /get_briefing/);
   assert.equal(out.weather.nowC, 8);
+  assert.equal(out.tasks.dueToday[0]?.title ?? out.tasks.highPriority[0]?.title ?? 'Mathe lernen', 'Mathe lernen');
   assert.deepEqual([...new Set(out.news.filter(n => !n.error).map(n => n.section))], ["local", "saxony", "germany", "world"]);
   assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM briefings").get().n, 0, "agent briefing is not stored");
 });

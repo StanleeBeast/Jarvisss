@@ -11,7 +11,8 @@ import { authenticate, handleAuthApi, authStatus } from "./auth.js";
 import { handleMemoriesApi } from "./memories.js";
 import { handleTasksApi } from "./tasks.js";
 import { getNews } from "./news.js";
-import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL } from "./agent.js";
+import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL, runAgent } from "./agent.js";
+import { handleAutonomyApi, runAutonomy } from "./autonomy.js";
 import { checkBudget, addUsage, handleUsageApi, getUsage, limits, budgetState, EXTRA_COST } from "./usage.js";
 import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
@@ -254,6 +255,13 @@ async function handleStt(request, env, headers) {
     return json({ error: isTimeout(error) ? "model_timeout" : "model_unreachable" }, 502, headers);
   }
 }
+// KI-Tagesvorbereitung für die Autonomie (morgens, einmal am Tag). Vorschläge werden nur gespeichert, nicht ausgeführt.
+export const DAY_PREP_PROMPT = "Bereite meinen Tag vor. Nutze get_briefing und get_day_plan. Antworte als gesprochenes Morgenbriefing in höchstens 120 Wörtern: Begrüßung, Wetter, was heute ansteht, wichtige Mails, eine Schlagzeile aus der Region. Wenn sinnvoll, schlage höchstens 3 Dinge vor (z. B. eine Aufgabe mit Uhrzeit oder eine Planänderung) – nur als Vorschlag.";
+async function prepareDay(env, timezone) {
+  const result = await runAgent({ messages: [{ role: "user", content: DAY_PREP_PROMPT }], timezone, profile: { autoMemory: false }, voice: true }, env);
+  return result.error ? { error: result.error } : { reply: result.reply, proposals: result.proposals || [] };
+}
+export { prepareDay };
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
@@ -294,6 +302,8 @@ export default {
     if (plannerResponse) return plannerResponse;
     const mailResponse = await handleMailApi(request, env, headers, url);
     if (mailResponse) return mailResponse;
+    const autonomyResponse = await handleAutonomyApi(request, env, headers, url);
+    if (autonomyResponse) return autonomyResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
       const auth = await authenticate(request, env, headers);
       if (auth.response) return auth.response;
@@ -313,6 +323,6 @@ export default {
 
   // Cloudflare Cron (wrangler.toml → [triggers]): Erinnerungen, Morgenbriefing, geplante Benachrichtigungen.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(runScheduler(env).catch(() => null));
+    ctx.waitUntil(runScheduler(env).catch(() => null).then(() => runAutonomy(env, { prepareDay }).catch(() => null)));
   }
 };

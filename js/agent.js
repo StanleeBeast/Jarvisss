@@ -248,5 +248,7 @@
   }
   el('sysRecheck')?.addEventListener('click', loadInsights);
 
-  window.JarvisAgent = { show, loadInsights, voiceConfirm };
+  // Vorschläge außerhalb der Antwortkarte anzeigen (z. B. aus der Tagesvorbereitung der Autonomie).
+  function renderProposals(container, proposals) { container.replaceChildren(...proposals.slice(0, 5).map(card)); }
+  window.JarvisAgent = { show, loadInsights, voiceConfirm, renderProposals };
 })();
