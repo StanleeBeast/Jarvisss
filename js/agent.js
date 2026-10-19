@@ -69,6 +69,8 @@
     return { ok: false, error: 'unknown_proposal' };
   }
 
+  // Offene Vorschläge, die auch per Stimme bestätigt oder verworfen werden können.
+  const open = [];
   function card(p) {
     const c = document.createElement('div');
     c.className = 'n1-proposal';
@@ -89,6 +91,8 @@
     const status = document.createElement('small');
     actions.append(ok, no, status);
     c.append(actions);
+    const entry = { p, c, ok, no, settled: () => c.dataset.state === 'saved' || c.dataset.state === 'rejected' };
+    open.push(entry);
     if (p.type === 'mail_reply') {
       // Antwortvorschlag: Text bleibt änderbar, gesendet wird erst nach der zweiten, ausdrücklichen Bestätigung.
       const text = document.createElement('textarea');
@@ -97,11 +101,11 @@
       text.setAttribute('aria-label', 'Antworttext');
       c.insertBefore(text, actions);
       ok.textContent = 'Senden …';
-      ok.onclick = () => {
+      ok.onclick = (ev, opts) => {
         if (!window.JarvisMail) return;
         window.JarvisMail.sendReply({ id: p.target.id, subject: p.target.subject, to: p.target.to, toName: p.target.toName }, text.value, status, () => {
           c.dataset.state = 'saved'; text.disabled = true; ok.remove(); no.remove();
-        });
+        }, opts);
       };
       no.onclick = () => { c.dataset.state = 'rejected'; status.textContent = 'Verworfen. Es wurde nichts gesendet.'; ok.remove(); no.remove(); text.disabled = true; };
       return c;
@@ -146,7 +150,35 @@
     return c;
   }
 
+  // Gesprochene Antwort auf offene Vorschläge: „ja/speichern/mach das“ bestätigt, „nein/verwerfen“ verwirft.
+  // Mail-Antworten werden nur mit einem ausdrücklichen „senden“ verschickt. Gibt true zurück, wenn der Satz verbraucht wurde.
+  const YES = /^(ja|jawohl|jo|okay|ok|gerne|genau|passt|mach( das| es)?|speicher[n]?( das)?|bestätig(en|e)?|trag( es| das)? ein|einverstanden|leg( es| sie)? an|stell( ihn| den wecker)?)\b/i;
+  const NO = /^(nein|nee|ne|nicht|lass( es| das)?|verwerf(en|e)?|abbrechen|stopp?|vergiss es)\b/i;
+  const SEND = /\b(senden|abschicken|verschicken|schick( sie| es)? ab)\b/i;
+  function voiceConfirm(text) {
+    const t = String(text || '').trim().replace(/^jarvis[,!.]?\s*/i, '');
+    const pending = open.filter(e => !e.settled() && document.body.contains(e.c));
+    if (!pending.length || t.length > 60) return false;
+    const e = pending[0];
+    if (NO.test(t)) { e.no.onclick?.(); window.speak?.('Alles klar, verworfen. Es wurde nichts geändert.'); return true; }
+    if (e.p.type === 'mail_reply') {
+      if (!SEND.test(t)) { if (YES.test(t)) { window.speak?.('Soll ich die Antwort an ' + (e.p.target.toName || e.p.target.to) + ' wirklich senden? Sag dann: Ja, senden.'); return true; } return false; }
+      e.ok.onclick?.(null, { spokenConfirm: true });
+      window.speak?.('Okay, ich übergebe die Antwort an die Home-Station. Ich sage dir Bescheid, wenn sie raus ist.');
+      return true;
+    }
+    if (!YES.test(t)) return false;
+    if (e.p.type === 'alarm') { e.ok.onclick?.(); window.speak?.('Ich starte den Kurzbefehl. Prüf bitte in der Uhr-App, ob der Wecker steht.'); return true; }
+    // Erst sprechen, wenn die Datenbank das Speichern bestätigt hat.
+    Promise.resolve(e.ok.onclick?.()).then(() => {
+      const saved = e.c.dataset.state === 'saved';
+      const more = open.filter(x => !x.settled() && document.body.contains(x.c)).length;
+      window.speak?.(saved ? 'Gespeichert.' + (more ? ' Es gibt noch einen Vorschlag – ja oder nein?' : '') : 'Das hat nicht geklappt: ' + (e.c.querySelector('small')?.textContent || 'unbekannter Fehler'));
+    });
+    return true;
+  }
   function show(proposals) {
+    open.length = 0;
     box.replaceChildren(...proposals.slice(0, 5).map(card));
     if (proposals.length) box.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
   }
@@ -216,5 +248,5 @@
   }
   el('sysRecheck')?.addEventListener('click', loadInsights);
 
-  window.JarvisAgent = { show, loadInsights };
+  window.JarvisAgent = { show, loadInsights, voiceConfirm };
 })();
