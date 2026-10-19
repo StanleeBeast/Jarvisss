@@ -6,7 +6,7 @@
 //   C – Verändern    : passiert ausschließlich, wenn der Nutzer einen Vorschlag in der App bestätigt
 //                      (die App ruft dann /api/tasks bzw. /api/memories auf, die den Erfolg bestätigen)
 //   D – Folgenreich  : Senden, Löschen – für das Modell nicht verfügbar
-import { json, clip, readJsonBody } from "./http.js";
+import { json, clip, readJsonBody, modelError } from "./http.js";
 import { authenticate } from "./auth.js";
 import { getNews, NEWS_QUERIES } from "./news.js";
 import { listTasks, taskFromRow, validateTaskFields, TASK_PRIORITIES } from "./tasks.js";
@@ -474,7 +474,7 @@ export async function runAgent(payload, env) {
       body: JSON.stringify({ model, messages, tools: toolDefinitions(tools), tool_choice: "auto", parallel_tool_calls: false, temperature: 0.4, max_tokens: 1100 }),
       signal: AbortSignal.timeout(40000)
     });
-    if (!upstream.ok) return finish({ error: upstream.status === 429 ? "model_rate_limited" : "model_request_failed", status: 502 });
+    if (!upstream.ok) return finish({ error: await modelError(upstream), status: 502 });
     const result = await upstream.json();
     usage.promptTokens += Number(result?.usage?.prompt_tokens) || 0;
     usage.completionTokens += Number(result?.usage?.completion_tokens) || 0;

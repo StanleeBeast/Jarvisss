@@ -1,7 +1,7 @@
 // JARVIS Nachrichten-Assistent: wertet ausdrücklich freigegebene Chats aus (WhatsApp-Export oder eingefügter Text).
 // Kein Zugriff auf WhatsApp selbst, kein automatisches Senden. Namen kommen bereits pseudonymisiert vom Gerät;
 // gespeichert wird nur die Auswertung, nie der Originalchat.
-import { json, clip, readJsonBody, audit } from "./http.js";
+import { json, clip, readJsonBody, audit, modelError } from "./http.js";
 import { authenticate, actorOf } from "./auth.js";
 import { checkBudget, addUsage } from "./usage.js";
 import { localToUtc, formatLocal, safeTimezone } from "./time.js";
@@ -121,7 +121,7 @@ export async function handleMessagesApi(request, env, headers, url) {
           signal: AbortSignal.timeout(90_000)
         });
       } catch (e) { return json({ error: e?.name === "TimeoutError" ? "model_timeout" : "model_unreachable" }, 502, headers); }
-      if (!res.ok) return json({ error: res.status === 429 ? "model_rate_limited" : "model_request_failed" }, 502, headers);
+      if (!res.ok) return json({ error: await modelError(res) }, 502, headers);
       const data = await res.json();
       await addUsage(env, { chatRequests: 1, promptTokens: Number(data?.usage?.prompt_tokens) || 0, completionTokens: Number(data?.usage?.completion_tokens) || 0 });
       const msg = data?.choices?.[0]?.message;

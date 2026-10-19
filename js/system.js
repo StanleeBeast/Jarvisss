@@ -33,6 +33,9 @@
     daily_limit_reached: 'Das tägliche Limit ist erreicht (setzt sich um Mitternacht zurück).',
     model_timeout: 'Das KI-Modell hat zu lange gebraucht.',
     model_unreachable: 'Der KI-Anbieter ist nicht erreichbar.',
+    model_quota_exhausted: 'Das OpenAI-Guthaben ist aufgebraucht oder es ist keine Zahlungsmethode hinterlegt (platform.openai.com → Settings → Billing).',
+    model_key_invalid: 'Der OpenAI-Schlüssel wird abgelehnt (GitHub-Secret OPENAI_API_KEY prüfen).',
+    model_rate_limited: 'OpenAI meldet zu viele Anfragen. Gleich noch einmal versuchen.',
     empty_model_response: 'Das KI-Modell hat keine Antwort geliefert.',
     agent_step_limit: 'Die Aufgabe war zu umfangreich für einen Durchgang. Bitte in kleinere Schritte teilen.',
     task_not_found: 'Die Aufgabe existiert nicht mehr.',
@@ -75,7 +78,6 @@
     offline: 'Keine Internetverbindung.',
     unreachable: 'Backend nicht erreichbar (URL, Deployment oder CORS/ALLOWED_ORIGINS prüfen).',
     not_found: 'Endpunkt nicht gefunden – ist der Worker aktuell deployed?',
-    model_rate_limited: 'Das KI-Kontingent ist erschöpft oder gedrosselt.',
     model_request_failed: 'Der KI-Anbieter hat die Anfrage abgelehnt.'
   };
   const TOOL_LABELS = { get_news: 'Nachrichten', list_tasks: 'Aufgaben gelesen', get_current_time: 'Uhrzeit', draft_task: 'Entwurf erstellt' };

@@ -1,7 +1,7 @@
 // JARVIS Lernassistent: aus eigenen Unterlagen (PDF-Text oder Seitenbilder bei Handschrift) entstehen
 // Lernzettel, Karteikarten und Quizfragen. Originalinhalte und Ergänzungen bleiben getrennt.
 // Keine erfundenen Quellen: Ergänzungen stammen aus dem allgemeinen Wissen des Modells und sind so gekennzeichnet.
-import { json, clip, readJsonBody, audit } from "./http.js";
+import { json, clip, readJsonBody, audit, modelError } from "./http.js";
 import { authenticate, actorOf } from "./auth.js";
 import { checkBudget, addUsage } from "./usage.js";
 
@@ -93,7 +93,7 @@ async function generate(env, req) {
     }),
     signal: AbortSignal.timeout(110_000)
   });
-  if (!res.ok) return { error: res.status === 429 ? "model_rate_limited" : "model_request_failed" };
+  if (!res.ok) return { error: await modelError(res) };
   const body = await res.json();
   await addUsage(env, { chatRequests: 1, promptTokens: Number(body?.usage?.prompt_tokens) || 0, completionTokens: Number(body?.usage?.completion_tokens) || 0 });
   const message = body?.choices?.[0]?.message;
