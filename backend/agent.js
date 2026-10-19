@@ -208,6 +208,19 @@ export const TOOLS = [
     }
   },
   {
+    name: "propose_improvement",
+    description: "Wenn der Nutzer möchte, dass du (JARVIS selbst, die App) dich veränderst oder verbesserst – neue Funktion, anderes Aussehen, anderes Verhalten –, formuliere daraus einen klaren Entwicklungsauftrag. Erstellt nur einen Vorschlag; erst nach Bestätigung wird eine Änderung gebaut, und erst nach einer zweiten Freigabe geht sie live. Sicherheitsregeln, Anmeldung, Kostengrenze und Bestätigungen sind tabu.",
+    parameters: { type: "object", properties: { title: { type: "string" }, description: { type: "string" } }, required: ["title", "description"], additionalProperties: false },
+    category: "B", access: "prepare", requiresConfirmation: true, timeoutMs: 1000,
+    available: (env) => Boolean(env.GITHUB_TOKEN_JARVIS),
+    run: async (args, ctx) => {
+      const title = clip(args.title, 120).trim(), description = clip(args.description, 3000).trim();
+      if (title.length < 4 || description.length < 10) return { error: "improvement_too_vague", hint: "Frag nach, was genau sich ändern soll." };
+      if (/sicherheit|passwort|token|anmeld|bestätig|kostengrenze|budget|limit/i.test(title + " " + description) && /(abschalt|entfern|umgeh|deaktiv|ohne)/i.test(title + " " + description)) return { error: "protected_change_refused", hint: "Schutzregeln darf JARVIS nicht abschwächen. Sag das dem Nutzer freundlich." };
+      return addProposal(ctx, { type: "improvement", payload: { title, description } });
+    }
+  },
+  {
     name: "get_briefing",
     description: "Holt in EINEM Schritt alles für ein Briefing oder einen Tagesüberblick: Wetter, fällige und überfällige Aufgaben, Kalendertermine heute, wichtige Mails und je zwei Schlagzeilen aus Region, Sachsen, Deutschland und Welt. Für „Briefing“, „Was steht heute an?“, „Gib mir einen Überblick“.",
     parameters: { type: "object", properties: {}, additionalProperties: false },
@@ -515,6 +528,9 @@ function systemPrompt(payload, tools, timezone, ctx) {
     "Du bist J.A.R.V.I.S.S., ein persönlicher Assistent. Antworte standardmäßig auf Deutsch, klar, warm, souverän und präzise, mit zurückhaltendem trockenem Humor. Kurze Fragen beantwortest du kurz, komplexe Aufträge gründlich.",
     "Jetzt ist " + formatLocal(nowIso, timezone) + " (Zeitzone " + timezone + ", UTC " + nowIso + ").",
     "Verfügbare Werkzeuge: " + toolList + ". Kein Werkzeug sendet oder löscht etwas. Nur remember speichert direkt (Dinge, die der Nutzer über sich sagt).",
+    tools.some(t => t.name === "propose_improvement")
+      ? "Selbstverbesserung: Wünscht sich der Nutzer eine Änderung an dir (Funktion, Aussehen, Verhalten), frag kurz nach, bis klar ist, was er will, und nutze dann propose_improvement mit einem präzisen Auftrag (was, wo, woran man erkennt, dass es fertig ist). Sag ehrlich: Nach seiner Bestätigung baut eine Code-KI die Änderung (dauert einige Minuten, kostet bei Anthropic etwa 0,50–2 $), danach muss er sie im Bereich Verbesserungen freigeben."
+      : "Selbstverbesserung ist nicht eingerichtet (GitHub-Secrets fehlen). Wünscht sich der Nutzer Änderungen an dir, sag ihm, dass das unter JARVIS → Verbesserungen eingerichtet werden kann.",
     "Arbeitsweise: Du bist ein selbstständiger Assistent. Zerlege Aufträge selbst in Schritte und nutze lesende Werkzeuge ohne Rückfrage (auch mehrere hintereinander), bevor du antwortest. Was du nicht sicher weißt oder was aktuell sein muss, schlägst du mit web_search nach, statt zu raten. Frag nur nach, wenn eine Entscheidung wirklich beim Nutzer liegt. Erzählt der Nutzer etwas Dauerhaftes über sich (Vorlieben, Schule, Arbeit, Personen, Ziele, wie du antworten sollst), merk es dir mit remember und erwähne das kurz. Nutze dein Gedächtnis aktiv, um Antworten persönlich zu machen.",
     canPropose
       ? "Möchte der Nutzer etwas anlegen, verschieben, erledigen oder sich merken lassen, nutze die propose_*-Werkzeuge. Danach sagst du klar, dass ein Vorschlag zur Bestätigung bereitliegt (\"Tippe auf Speichern, dann trage ich es ein\"). Sag NIEMALS, es sei bereits gespeichert, erinnert oder geplant. Für Änderungen an bestehenden Aufgaben hole dir zuerst mit list_tasks die id."

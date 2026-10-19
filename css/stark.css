@@ -362,3 +362,4 @@ body.n1-settings-open .hf-pill{display:none!important}
 .ctx-recipe{padding:10px 0;border-top:1px solid var(--line)}
 .ctx-recipe b{display:block;color:var(--gold-hi)}
 .ctx-recipe small{display:block;color:var(--muted);font-size:12px;line-height:1.45}
+.imp-link{display:inline-flex;align-items:center;padding:7px 12px;border:1px solid var(--line);color:var(--gold-hi);font-size:13px}.imp-entry[data-kind="live"]::before{background:var(--good)}

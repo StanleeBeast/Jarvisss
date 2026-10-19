@@ -55,6 +55,10 @@
     } else if (p.type === 'mail_reply') {
       lines.push(['Antwort an', p.target.toName ? p.target.toName + ' <' + p.target.to + '>' : p.target.to]);
       lines.push(['Betreff', /^(re|aw):/i.test(p.target.subject) ? p.target.subject : 'Re: ' + p.target.subject]);
+    } else if (p.type === 'improvement') {
+      lines.push(['JARVIS verbessern', p.payload.title]);
+      lines.push(['Auftrag', p.payload.description]);
+      lines.push(['Danach', 'Eine Code-KI baut die Änderung (einige Minuten, ca. 0,50–2 $ bei Anthropic). Live erst nach deiner Freigabe unter „Verbesserungen“.']);
     } else if (p.type === 'save_memory') {
       lines.push(['Merken als ' + (KIND[p.payload.kind] || 'Erinnerung'), p.payload.text]);
     }
@@ -66,6 +70,7 @@
     if (p.type === 'update_task') return window.JarvisCore.api('/api/tasks/' + encodeURIComponent(p.target.id), { method: 'PATCH', body: p.payload });
     if (p.type === 'save_memory') return window.JarvisCore.api('/api/memories', { method: 'POST', body: p.payload });
     if (p.type === 'plan_change') return window.JarvisCore.api('/api/planner/day/' + encodeURIComponent(p.date) + '/overrides', { method: 'PUT', body: p.payload });
+    if (p.type === 'improvement') return window.JarvisCore.api('/api/improvements', { method: 'POST', body: { ...p.payload, confirm: true } });
     return { ok: false, error: 'unknown_proposal' };
   }
 
@@ -196,7 +201,7 @@
 
   const CATEGORY = { A: 'A · Lesen', B: 'B · Vorschlagen' };
   const TOOL_TEXT = {
-    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', get_calendar_events: 'Kalender lesen (Abo-Link, nur lesen)', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen', list_mails: 'Mails lesen (über die Home-Station)', web_search: 'Im Internet suchen (mit Quellen)', remember: 'Sich Wichtiges merken (sichtbar und löschbar im Gedächtnis)', propose_mail_reply: 'Mail-Antwort vorschlagen (Senden nur nach Bestätigung)',
+    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', get_calendar_events: 'Kalender lesen (Abo-Link, nur lesen)', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen', list_mails: 'Mails lesen (über die Home-Station)', web_search: 'Im Internet suchen (mit Quellen)', remember: 'Sich Wichtiges merken (sichtbar und löschbar im Gedächtnis)', propose_mail_reply: 'Mail-Antwort vorschlagen (Senden nur nach Bestätigung)', propose_improvement: 'Verbesserung an sich selbst vorschlagen (Bau nach Bestätigung, live nach Freigabe)', get_briefing: 'Briefing in einem Schritt',
     propose_task: 'Aufgabe vorschlagen', propose_task_update: 'Aufgabenänderung vorschlagen', propose_memory: 'Erinnerung vorschlagen', propose_alarm: 'Wecker über Kurzbefehl vorschlagen', draft_task: 'Text-Entwurf (ohne Datenbank)'
   };
   function meter(label, used, max) {

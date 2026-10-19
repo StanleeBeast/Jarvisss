@@ -48,6 +48,7 @@ jobs:
           JARVIS_ACCESS_TOKEN: ${{ secrets.JARVIS_ACCESS_TOKEN }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
+          GITHUB_TOKEN_JARVIS: ${{ secrets.GITHUB_TOKEN_JARVIS }}
         run: |
           set -eu
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing GitHub secret CLOUDFLARE_API_TOKEN"; exit 1)
@@ -62,6 +63,10 @@ jobs:
             printf '%s' "$ELEVENLABS_API_KEY" | npx --yes wrangler secret put ELEVENLABS_API_KEY --config wrangler.toml
           else
             echo "ELEVENLABS_API_KEY nicht gesetzt – OpenAI-Stimme bleibt aktiv."
+          fi
+          # Optional: Selbstverbesserung (fein eingeschränkter GitHub-Token nur für dieses Repository).
+          if [ -n "${GITHUB_TOKEN_JARVIS:-}" ]; then
+            printf '%s' "$GITHUB_TOKEN_JARVIS" | npx --yes wrangler secret put GITHUB_TOKEN_JARVIS --config wrangler.toml
           fi
           if [ -n "${ELEVENLABS_VOICE_ID:-}" ]; then
             printf '%s' "$ELEVENLABS_VOICE_ID" | npx --yes wrangler secret put ELEVENLABS_VOICE_ID --config wrangler.toml

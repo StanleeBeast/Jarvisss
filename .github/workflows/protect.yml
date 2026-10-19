@@ -1,0 +1,26 @@
+name: Schutzregeln
+
+# Jeder Pull Request: geschützte Dateien dürfen von JARVIS-Selbstverbesserungen nicht geändert werden.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  protected-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Geschützte Dateien unverändert (nur für JARVIS-Wünsche)
+        if: startsWith(github.event.pull_request.title, 'JARVIS-Wunsch')
+        run: |
+          changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "$changed"
+          if echo "$changed" | grep -E '^\.github/|^backend/(auth|http|usage|improve)\.js$|^backend/migrations/00(0[0-9]|1[0-2])_|^backend/wrangler\.toml$|^homestation/src/(secret|backend)\.js$|^backend/test-support/'; then
+            echo "Geschützte Datei geändert – diese Selbstverbesserung wird nicht übernommen."; exit 1
+          fi

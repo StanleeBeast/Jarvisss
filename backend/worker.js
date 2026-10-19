@@ -14,6 +14,7 @@ import { getNews } from "./news.js";
 import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL, runAgent } from "./agent.js";
 import { handleAutonomyApi, runAutonomy } from "./autonomy.js";
 import { handleContextApi } from "./context.js";
+import { handleImprovementsApi, improvementStatus } from "./improve.js";
 import { checkBudget, addUsage, handleUsageApi, getUsage, limits, budgetState, EXTRA_COST } from "./usage.js";
 import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
@@ -128,6 +129,7 @@ async function systemStatus(env, principal) {
         ? { state: "available", detail: "Aufgaben und Gedächtnis: geräteübergreifend. Profil, Stimme und Design: weiterhin nur lokal.", verified: true }
         : { state: "not_available", detail: "Profil, Gedächtnis und Design liegen nur lokal im Browser." },
       mail: await stationStatus(env),
+      improvements: improvementStatus(env),
       messaging: { state: "manual_only", detail: "Kein Zugriff auf WhatsApp. Ausgewählte Chats importierst du selbst (Chat exportieren oder einfügen); Antworten sind Entwürfe, die du selbst sendest. E-Mail: siehe Home-Station." }
     }
   };
@@ -303,6 +305,8 @@ export default {
     if (plannerResponse) return plannerResponse;
     const mailResponse = await handleMailApi(request, env, headers, url);
     if (mailResponse) return mailResponse;
+    const improveResponse = await handleImprovementsApi(request, env, headers, url);
+    if (improveResponse) return improveResponse;
     const contextResponse = await handleContextApi(request, env, headers, url);
     if (contextResponse) return contextResponse;
     const autonomyResponse = await handleAutonomyApi(request, env, headers, url);
