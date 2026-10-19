@@ -80,7 +80,7 @@ body:before{display:none!important}
 /* ORB-Bühne: Partikel-Kugel (Canvas), der alte CSS-Kern bleibt verborgen */
 #nexusOne .n1-core-stage{position:relative}
 #nexusOne .n1-core-stage:before{display:none!important}
-#nexusOne .n1-core{opacity:0!important;pointer-events:none}
+#nexusOne .n1-core{display:none!important} /* ersetzt durch die Partikel-Kugel; unsichtbar animiert kostete Leistung */
 #orbCanvas{position:absolute;inset:-6% -4%;width:108%;height:112%;pointer-events:none}
 #nexusOne .n1-core-label{font-family:var(--hud-font)!important;font-weight:700;font-size:11px!important;letter-spacing:.5em!important;color:var(--muted)!important}
 #nexusOne .n1-core-label span{color:var(--gold-hi)!important}
@@ -259,3 +259,12 @@ body.no-motion #nexusOne .n1-left>*,body.no-motion #nexusOne .n1-news,body.no-mo
 .mail-rules summary{cursor:pointer;font-family:var(--hud-font);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
 .mail-rules textarea{width:100%}
 .mail-setup a{color:var(--gold)}
+
+/* Leistung „Leicht“ (iPad/iPhone automatisch): Milchglas und weichgezeichnete Leucht-Animationen aus.
+   Diese Effekte müssen über bewegtem Hintergrund in jedem Bild neu berechnet werden. */
+html.perf-lite *,html.perf-lite *::before,html.perf-lite *::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+html.perf-lite #nexusOne *::before,html.perf-lite #nexusOne *::after{filter:none!important}
+html.perf-lite #nexusOne .n1-core-stage::after,html.perf-lite .n1-settings-glyph,html.perf-lite .orb,html.perf-lite .orb *{animation:none!important}
+html.perf-lite .n1-settings-dialog,html.perf-lite .dialog{background:rgba(14,12,10,.97)!important}
+html.perf-lite #nexusOne .n1-command,html.perf-lite #nexusOne .n1-answer,html.perf-lite #nexusOne .n1-news,html.perf-lite #nexusOne .n1-day{background:rgba(18,15,12,.9)!important}
+.motion-sub{margin:14px 0 6px;font-family:var(--hud-font);letter-spacing:.16em;font-size:12px;color:var(--gold);text-transform:uppercase}

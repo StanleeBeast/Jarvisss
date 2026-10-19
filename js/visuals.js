@@ -55,11 +55,32 @@
   window.JarvisMotion = { mode, allowed, set: setMode, onChange: (fn) => listeners.add(fn), systemReduced: () => reducedQuery.matches };
   applyMotion();
 
+  // --- Leistung: „Hoch“ / „Leicht“ / „Automatisch“ ------------------------------------------------
+  // Leicht: kein Milchglas-Effekt (der wird über bewegtem Hintergrund in jedem Bild neu berechnet), weniger
+  // Partikel, niedrigere Auflösung, 30 Bilder/s für die Kugel und ein langsam aktualisierter Hintergrund.
+  // Automatisch: auf Touch-Geräten (iPad, iPhone) leicht, sonst hoch – und herunterschalten, wenn es ruckelt.
+  const QUALITY_KEY = 'jarvis_quality_v1';
+  const qListeners = new Set();
+  const touch = window.matchMedia ? window.matchMedia('(pointer: coarse)').matches : false;
+  let autoLite = touch;
+  function qualityMode() { const m = read(QUALITY_KEY, 'auto'); return ['auto', 'high', 'lite'].includes(m) ? m : 'auto'; }
+  function lite() { const m = qualityMode(); return m === 'lite' || (m === 'auto' && autoLite); }
+  function applyQuality() { document.documentElement.classList.toggle('perf-lite', lite()); qListeners.forEach(fn => fn(lite())); renderMotionPanel(); }
+  function setQuality(m) { write(QUALITY_KEY, m); applyQuality(); }
+  function reportSlow() { if (qualityMode() === 'auto' && !autoLite) { autoLite = true; applyQuality(); } }
+  window.JarvisQuality = { mode: qualityMode, lite, set: setQuality, onChange: (fn) => qListeners.add(fn), reportSlow };
+  document.documentElement.classList.toggle('perf-lite', lite());
+  // Verdeckt das Einstellungsfenster die Animationen, pausieren sie.
+  const covered = () => document.body.classList.contains('n1-settings-open') || document.hidden;
+
   // Bedienelement im Bereich „Design“
   function renderMotionPanel() {
     const box = el('motionPanel');
     if (!box) return;
     box.querySelectorAll('[data-motion]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.motion === mode())));
+    box.querySelectorAll('[data-quality]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.quality === window.JarvisQuality?.mode())));
+    const qs = el('qualityState');
+    if (qs && window.JarvisQuality) qs.textContent = window.JarvisQuality.lite() ? 'Leicht: flüssiger auf iPad und iPhone, weniger Effekte.' + (window.JarvisQuality.mode() === 'auto' ? ' (automatisch gewählt)' : '') : 'Hoch: alle Effekte. Ruckelt es, wähle „Automatisch“ oder „Leicht“.';
     const intro = el('introToggle');
     if (intro) intro.checked = read(INTRO_KEY, '1') !== '0';
     el('motionState').textContent = reducedQuery.matches
@@ -75,9 +96,13 @@
     panel.innerHTML = '<h2>◈ ANIMATIONEN</h2><div class="motion-seg" role="group" aria-label="Animationen">'
       + '<button type="button" data-motion="on">Immer an</button><button type="button" data-motion="system">Wie das Gerät</button><button type="button" data-motion="off">Aus</button></div>'
       + '<p class="motion-state" id="motionState"></p>'
+      + '<h3 class="motion-sub">Leistung</h3><div class="motion-seg" role="group" aria-label="Leistung">'
+      + '<button type="button" data-quality="high">Hoch</button><button type="button" data-quality="auto">Automatisch</button><button type="button" data-quality="lite">Leicht</button></div>'
+      + '<p class="motion-state" id="qualityState"></p>'
       + '<label class="hint"><input type="checkbox" id="introToggle" style="width:auto;margin-right:8px">Startanimation (Weltkarte → Miltitz) beim Öffnen zeigen</label>';
     grid.prepend(panel);
     panel.querySelectorAll('[data-motion]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.motion)));
+    panel.querySelectorAll('[data-quality]').forEach(b => b.addEventListener('click', () => setQuality(b.dataset.quality)));
     el('introToggle').addEventListener('change', (e) => write(INTRO_KEY, e.target.checked ? '1' : '0'));
     // Der alte Schalter „Hologramm-Animationen aktiv“ wird durch diese Einstellung ersetzt.
     el('animationsEnabled')?.closest('label')?.setAttribute('hidden', '');
@@ -113,7 +138,7 @@
     document.body.prepend(canvas);
     let ctx, w = 0, h = 0, raf = 0, frame = 0, t = Math.random() * 50;
     const CELL = 26, LEVELS = [0.22, 0.3, 0.38, 0.46, 0.54, 0.62, 0.7, 0.78];
-    function resize() { w = innerWidth; h = innerHeight; ctx = fitCanvas(canvas, w, h, 1.5); draw(); }
+    function resize() { w = innerWidth; h = innerHeight; ctx = fitCanvas(canvas, w, h, lite() ? 1 : 1.5); draw(); }
     function field(x, y) { return noise3(x * 0.0042, y * 0.0042, t) * 0.7 + noise3(x * 0.011, y * 0.011, t * 1.7 + 9) * 0.3; }
     function draw() {
       if (!ctx) return;
@@ -155,12 +180,15 @@
         ctx.stroke();
       });
     }
-    function loop() {
-      frame++;
-      if (frame % 3 === 0) { t += 0.0022; draw(); } // ~20 Bilder pro Sekunde reichen und sparen Akku
+    let lastDraw = 0;
+    function loop(now) {
+      // Hoch: ~20 Bilder/s. Leicht: 4 Bilder/s – die Linien wandern langsam, das reicht für den Eindruck.
+      const every = lite() ? 250 : 50;
+      if (!covered() && now - lastDraw >= every) { t += 0.0022 * (now - lastDraw) / 50; lastDraw = now; draw(); }
       raf = requestAnimationFrame(loop);
     }
-    function sync(on) { cancelAnimationFrame(raf); if (on && !document.hidden) raf = requestAnimationFrame(loop); else draw(); }
+    function sync(on) { cancelAnimationFrame(raf); lastDraw = performance.now(); if (on && !document.hidden) raf = requestAnimationFrame(loop); else draw(); }
+    window.JarvisQuality.onChange(() => resize());
     resize();
     addEventListener('resize', resize, { passive: true });
     document.addEventListener('visibilitychange', () => sync(allowed()));
@@ -177,8 +205,9 @@
     canvas.id = 'orbCanvas';
     canvas.setAttribute('aria-hidden', 'true');
     stage.prepend(canvas);
-    const N = Math.min(2200, Math.max(1100, Math.round((innerWidth * innerHeight) / 600)));
+    const N_HIGH = Math.min(2200, Math.max(1100, Math.round((innerWidth * innerHeight) / 600))), N_LITE = 650;
     const pts = [];
+    const N = N_HIGH;
     const golden = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < N; i++) {
       const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), th = golden * i;
@@ -195,7 +224,8 @@
       error: { amp: 0.09, speed: 0.15, hue: [255, 70, 50] },
       offline: { amp: 0.015, speed: 0.04, hue: [150, 135, 115] }
     };
-    function resize() { const r = canvas.getBoundingClientRect(); w = Math.max(1, r.width); h = Math.max(1, r.height); ctx = fitCanvas(canvas, w, h, 2); }
+    function resize() { const r = canvas.getBoundingClientRect(); w = Math.max(1, r.width); h = Math.max(1, r.height); ctx = fitCanvas(canvas, w, h, lite() ? 1.25 : 2); }
+    const BUCKETS = 8, bx = Array.from({ length: BUCKETS * 2 }, () => []);
     function frame(now) {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       const core = app.dataset.core || 'idle';
@@ -231,27 +261,40 @@
         ctx.restore();
       }
       ctx.restore();
-      // Partikel
-      ctx.globalCompositeOperation = 'lighter';
+      // Partikel – nach Helligkeit in wenige Gruppen sortiert, damit pro Bild nur ~16 Farbwechsel nötig sind.
+      const light = lite();
+      if (!light) ctx.globalCompositeOperation = 'lighter';
       const cosR = Math.cos(rot), sinR = Math.sin(rot), cosT = Math.cos(tilt), sinT = Math.sin(tilt);
       const amp = st.amp + en * 0.12;
-      for (const p of pts) {
-        // Verformung: Rauschen auf der Kugeloberfläche, beim Sprechen stärker
-        const n = noise3(p.x * 1.6 + t * 0.5, p.y * 1.6 + t * 0.35, p.z * 1.6 + t * 0.6) - 0.5;
+      const count = light ? N_LITE : pts.length, stride = pts.length / count;
+      for (const b of bx) b.length = 0;
+      for (let k = 0; k < count; k++) {
+        const p = pts[Math.floor(k * stride)];
+        // Verformung der Kugeloberfläche; im leichten Modus mit günstigen Sinuswellen statt 3D-Rauschen
+        const n = light
+          ? (Math.sin(p.x * 3.1 + t * 0.9) * Math.sin(p.y * 2.7 + t * 0.7) * Math.sin(p.z * 2.3 + t * 1.1)) * 0.5
+          : noise3(p.x * 1.6 + t * 0.5, p.y * 1.6 + t * 0.35, p.z * 1.6 + t * 0.6) - 0.5;
         const swirl = core === 'processing' ? Math.sin(p.y * 6 + t * 4) * 0.05 : 0;
         const rr = 1 + n * amp * 2.4 + swirl + flash * 0.08 * Math.sin(p.ph + t * 9);
-        let x = p.x * rr, y = p.y * rr, z = p.z * rr;
+        const x = p.x * rr, y = p.y * rr, z = p.z * rr;
         const x1 = x * cosR - z * sinR, z1 = x * sinR + z * cosR;
         const y2 = y * cosT - z1 * sinT, z2 = y * sinT + z1 * cosT;
         const persp = 2.6 / (2.6 - z2);
-        const sx = cx + x1 * R * persp, sy = cy + y2 * R * persp;
         const depth = (z2 + 1) / 2;
         const tw = 0.6 + 0.4 * Math.sin(p.ph + t * (1.5 + p.s * 2));
         const a = Math.min(1, (0.18 + depth * 0.9) * tw);
-        const size = (0.7 + depth * 1.9 + p.s * 0.7) * (1 + en * 0.3);
-        const hot = depth > 0.82 && p.s > 0.7;
+        const size = (0.7 + depth * 1.9 + p.s * 0.7) * (1 + en * 0.3) * (light ? 1.25 : 1);
+        const hot = depth > 0.82 && p.s > 0.7 ? 1 : 0;
+        bx[hot * BUCKETS + Math.min(BUCKETS - 1, Math.floor(a * BUCKETS))].push(cx + x1 * R * persp - size / 2, cy + y2 * R * persp - size / 2, size);
+      }
+      for (let g = 0; g < bx.length; g++) {
+        const list = bx[g];
+        if (!list.length) continue;
+        const hot = g >= BUCKETS, a = ((g % BUCKETS) + 0.5) / BUCKETS;
         ctx.fillStyle = hot ? 'rgba(255,244,220,' + a + ')' : 'rgba(' + cr + ',' + cg + ',' + cb + ',' + a + ')';
-        ctx.fillRect(sx - size / 2, sy - size / 2, size, size);
+        ctx.beginPath();
+        for (let i = 0; i < list.length; i += 3) ctx.rect(list[i], list[i + 1], list[i + 2], list[i + 2]);
+        ctx.fill();
       }
       ctx.globalCompositeOperation = 'source-over';
       // Zielmarken um die Kugel
@@ -261,8 +304,20 @@
         ctx.beginPath(); ctx.moveTo(cx + sx * m, cy + sy * (m - 12)); ctx.lineTo(cx + sx * m, cy + sy * m); ctx.lineTo(cx + sx * (m - 12), cy + sy * m); ctx.stroke();
       }
     }
-    function loop(now) { frame(now); raf = requestAnimationFrame(loop); }
-    function sync(on) { cancelAnimationFrame(raf); last = performance.now(); if (on && !document.hidden) raf = requestAnimationFrame(loop); else frame(performance.now()); }
+    // Leicht: 30 Bilder/s. Automatisch: misst die Bildzeiten und schaltet bei Ruckeln auf „Leicht“.
+    let lastDrawn = 0, samples = 0, slow = 0;
+    function loop(now) {
+      raf = requestAnimationFrame(loop);
+      if (covered()) return;
+      const gap = now - lastDrawn;
+      if (lite() && gap < 30) return;
+      if (lastDrawn && gap < 200) { samples++; if (gap > (lite() ? 45 : 24)) slow++; }
+      if (samples >= 120) { if (slow / samples > 0.35) window.JarvisQuality.reportSlow(); samples = slow = 0; }
+      lastDrawn = now;
+      frame(now);
+    }
+    function sync(on) { cancelAnimationFrame(raf); last = performance.now(); lastDrawn = 0; if (on && !document.hidden) raf = requestAnimationFrame(loop); else frame(performance.now()); }
+    window.JarvisQuality.onChange(() => resize());
     resize();
     addEventListener('resize', () => { resize(); if (!allowed()) frame(performance.now()); }, { passive: true });
     document.addEventListener('visibilitychange', () => sync(allowed()));
