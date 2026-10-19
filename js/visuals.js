@@ -99,11 +99,32 @@
       + '<h3 class="motion-sub">Leistung</h3><div class="motion-seg" role="group" aria-label="Leistung">'
       + '<button type="button" data-quality="high">Hoch</button><button type="button" data-quality="auto">Automatisch</button><button type="button" data-quality="lite">Leicht</button></div>'
       + '<p class="motion-state" id="qualityState"></p>'
-      + '<label class="hint"><input type="checkbox" id="introToggle" style="width:auto;margin-right:8px">Startanimation (Weltkarte → Miltitz) beim Öffnen zeigen</label>';
+      + '<label class="hint"><input type="checkbox" id="introToggle" style="width:auto;margin-right:8px">Startanimation (Weltkarte → Miltitz) beim Öffnen zeigen</label>'
+      + '<h3 class="motion-sub">Startmusik</h3><p class="hint">Eigene Musik für die Startanimation, z. B. aus der Dateien-App. Sie bleibt nur auf diesem Gerät. Mit Musik startet die Animation nach einem Tipp, weil iPad und iPhone Ton erst nach einer Berührung abspielen.</p>'
+      + '<p class="motion-state" id="musicState"></p><div class="motion-seg"><label class="music-pick">Musik wählen<input type="file" id="musicFile" accept="audio/*" hidden></label><button type="button" id="musicTest">Anhören</button><button type="button" id="musicRemove">Entfernen</button></div>'
+      + '<label class="hint">Lautstärke<input type="range" id="musicVolume" min="0" max="1" step="0.05"></label>';
     grid.prepend(panel);
     panel.querySelectorAll('[data-motion]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.motion)));
     panel.querySelectorAll('[data-quality]').forEach(b => b.addEventListener('click', () => setQuality(b.dataset.quality)));
     el('introToggle').addEventListener('change', (e) => write(INTRO_KEY, e.target.checked ? '1' : '0'));
+    let preview = null;
+    const musicState = async () => { const has = await window.JarvisIntroMusic.get(); el('musicState').textContent = has ? 'Gewählt: ' + (window.JarvisIntroMusic.name() || 'eigene Musik') : 'Keine Startmusik gewählt.'; el('musicTest').hidden = el('musicRemove').hidden = !has; };
+    el('musicVolume').value = window.JarvisIntroMusic.volume();
+    el('musicVolume').addEventListener('input', (e) => { window.JarvisIntroMusic.setVolume(e.target.value); if (preview) preview.volume = Number(e.target.value); });
+    el('musicFile').addEventListener('change', async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      try { await window.JarvisIntroMusic.save(f); toast('Startmusik gespeichert.'); } catch (err) { toast(err.message || 'Musik konnte nicht gespeichert werden.'); }
+      e.target.value = ''; musicState();
+    });
+    el('musicTest').addEventListener('click', async () => {
+      if (preview) { preview.pause(); preview = null; el('musicTest').textContent = 'Anhören'; return; }
+      const b = await window.JarvisIntroMusic.get(); if (!b) return;
+      preview = new Audio(URL.createObjectURL(b)); preview.volume = window.JarvisIntroMusic.volume();
+      preview.onended = () => { preview = null; el('musicTest').textContent = 'Anhören'; };
+      preview.play().then(() => { el('musicTest').textContent = 'Stopp'; }).catch(() => toast('Abspielen nicht möglich.'));
+    });
+    el('musicRemove').addEventListener('click', async () => { if (preview) { preview.pause(); preview = null; } await window.JarvisIntroMusic.remove(); toast('Startmusik entfernt.'); musicState(); });
+    musicState();
     // Der alte Schalter „Hologramm-Animationen aktiv“ wird durch diese Einstellung ersetzt.
     el('animationsEnabled')?.closest('label')?.setAttribute('hidden', '');
     renderMotionPanel();
@@ -327,6 +348,31 @@
   })();
 
   // --- Startanimation: Weltkarte → Deutschland → Miltitz ------------------------------------------
+  // --- Startmusik: eigene Datei, nur auf diesem Gerät gespeichert (IndexedDB), nie im öffentlichen Projekt ---
+  const media = (() => {
+    const open = () => new Promise((res, rej) => { const r = indexedDB.open('jarvis-media', 1); r.onupgradeneeded = () => r.result.createObjectStore('files'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('files', mode); const out = fn(t.objectStore('files')); t.oncomplete = () => res(out?.result); t.onerror = () => rej(t.error); }); };
+    return {
+      get: () => tx('readonly', s => s.get('intro')).catch(() => null),
+      put: (blob) => tx('readwrite', s => s.put(blob, 'intro')),
+      del: () => tx('readwrite', s => s.delete('intro'))
+    };
+  })();
+  const MUSIC_VOL_KEY = 'jarvis_intro_music_volume_v1';
+  window.JarvisIntroMusic = {
+    async save(file) {
+      if (!file || !/^audio\//.test(file.type || 'audio/')) throw new Error('Bitte eine Audiodatei wählen (z. B. MP3 oder M4A).');
+      if (file.size > 25 * 1024 * 1024) throw new Error('Die Datei ist größer als 25 MB.');
+      await media.put(new Blob([await file.arrayBuffer()], { type: file.type || 'audio/mpeg' }));
+      write('jarvis_intro_music_name_v1', file.name.slice(0, 80));
+    },
+    async remove() { await media.del(); write('jarvis_intro_music_name_v1', ''); },
+    get: () => media.get(),
+    name: () => read('jarvis_intro_music_name_v1', ''),
+    volume: () => Math.max(0, Math.min(1, Number(read(MUSIC_VOL_KEY, '0.8')) || 0.8)),
+    setVolume: (v) => write(MUSIC_VOL_KEY, String(v))
+  };
+
   (function intro() {
     const screen = el('bootSequence');
     if (!screen) { document.body.classList.add('intro-done'); return; }
@@ -337,6 +383,7 @@
       if (done) return;
       done = true;
       cancelAnimationFrame(raf); timers.forEach(clearTimeout);
+      fadeMusic(2500);
       screen.classList.add('boot-hidden');
       document.body.classList.add('intro-done');
       setTimeout(() => screen.remove(), 950);
@@ -345,14 +392,22 @@
         setTimeout(() => { const t = el('n1Toast'); if (t) { t.textContent = 'Animationen sind aus, weil auf diesem Gerät „Bewegung reduzieren“ an ist. Einschalten: Einstellungen → Design → Animationen → Immer an.'; t.style.display = 'block'; setTimeout(() => { t.style.display = 'none'; }, 7000); } }, 1200);
       }
     }
+    let music = null;
+    function fadeMusic(ms) {
+      if (!music) return;
+      const a = music, from = a.volume, t0 = performance.now();
+      const step = () => { const k = Math.min(1, (performance.now() - t0) / ms); a.volume = from * (1 - k); if (k < 1) requestAnimationFrame(step); else { a.pause(); URL.revokeObjectURL(a.src); } };
+      requestAnimationFrame(step);
+      music = null;
+    }
     el('bootSkip')?.addEventListener('click', finish, { once: true });
-    timers.push(setTimeout(finish, 14000)); // Sicherheitsnetz
+    timers.push(setTimeout(finish, 22000)); // Sicherheitsnetz
     if (read(INTRO_KEY, '1') === '0') { finish(); return; }
 
     const motionBtn = el('introMotion');
     if (!allowed() && window.JarvisMotion.systemReduced() && motionBtn) {
       motionBtn.hidden = false;
-      motionBtn.addEventListener('click', () => { setMode('on'); motionBtn.hidden = true; timers.forEach(clearTimeout); timers.length = 0; timers.push(setTimeout(finish, 14000)); run(); });
+      motionBtn.addEventListener('click', () => { setMode('on'); motionBtn.hidden = true; timers.forEach(clearTimeout); timers.length = 0; timers.push(setTimeout(finish, 22000)); run(); });
     }
 
     const D = Math.PI / 180;
@@ -393,191 +448,168 @@
       }
       ctx.globalAlpha = alpha; ctx.strokeStyle = 'rgba(255,179,71,0.5)'; ctx.lineWidth = 0.6; ctx.stroke(); ctx.globalAlpha = 1;
     }
-    // Punkte erscheinen als Welle vom Bildmittelpunkt aus und funkeln leicht.
-    function drawDots(arr, stride, view, step, alpha, ms, flagged, fade) {
-      if (!arr || alpha <= 0.01) return;
-      const size = Math.max(1.1, Math.min(5.5, step * view.k * 0.42));
-      const maxR = Math.hypot(w, h) / 2;
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < arr.length; i += stride) {
-        const q = project(arr[i], arr[i + 1], view.lon, view.lat, view.k, view.cx, view.cy);
-        if (!q || q[0] < -10 || q[0] > w + 10 || q[1] < -10 || q[1] > h + 10) continue;
-        const home = flagged && arr[i + 2] === 1;
-        const dist = Math.hypot(q[0] - view.cx, q[1] - view.cy) / maxR;
-        const reveal = Math.min(1, Math.max(0, (ms - 150 - dist * 900) / 450));
-        if (reveal <= 0) continue;
-        const tw = 0.75 + 0.25 * Math.sin(ms / 260 + i * 0.37);
-        const f = fade ? fade(arr[i], arr[i + 1]) : 1;
-        if (f <= 0.01) continue;
-        const a = f * alpha * reveal * tw * (flagged ? (home ? 0.95 : 0.35) : 0.75);
-        ctx.fillStyle = home ? 'rgba(255,205,120,' + a + ')' : flagged ? 'rgba(200,120,50,' + a + ')' : 'rgba(255,170,60,' + a + ')';
-        const sz = size * (home ? 1.1 : 0.9);
-        ctx.fillRect(q[0] - sz / 2, q[1] - sz / 2, sz, sz);
-      }
-      ctx.globalCompositeOperation = 'source-over';
-    }
-    function sweep(home, ms, radius, alpha) {
-      // Radarstrahl um den Zielpunkt
-      const ang = (ms / 900) % (Math.PI * 2);
-      ctx.save(); ctx.globalAlpha = alpha; ctx.translate(home[0], home[1]);
-      for (let k = 0; k < 18; k++) {
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, radius, ang - (k + 1) * 0.035, ang - k * 0.035); ctx.closePath();
-        ctx.fillStyle = 'rgba(255,170,60,' + (0.16 * (1 - k / 18)) + ')'; ctx.fill();
-      }
-      ctx.restore();
-    }
     const ease = (x) => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
     const lerp = (a, b, t) => a + (b - a) * t;
-    const TOTAL = 8200;
-    function render(ms) {
-      const cx = w / 2, cy = h * 0.54;
-      const R = Math.min(w, h) * 0.34;
-      const kEnd = w / (0.6 * D); // am Ende ca. 0,6 Längengrade (~40 km) über die Breite
-      const tRot = ease((ms - 200) / 2600), tZoom = ease((ms - 2300) / 3400);
-      const view = {
-        lon: lerp(-35, HOME.lon, tRot), lat: lerp(18, HOME.lat, tRot),
-        k: R * Math.pow(kEnd / R, tZoom), cx, cy
-      };
-      const z = view.k / R;
-      ctx.clearRect(0, 0, w, h);
-      // Globus-Scheibe und Atmosphäre
-      const globeAlpha = Math.max(0, 1 - Math.log(z) / Math.log(6));
-      if (globeAlpha > 0) {
-        const g = ctx.createRadialGradient(cx, cy, view.k * 0.7, cx, cy, view.k * 1.12);
-        g.addColorStop(0, 'rgba(255,150,40,0)'); g.addColorStop(0.85, 'rgba(255,150,40,' + 0.18 * globeAlpha + ')'); g.addColorStop(1, 'rgba(255,150,40,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, view.k * 1.12, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(20,14,8,' + 0.85 * globeAlpha + ')'; ctx.beginPath(); ctx.arc(cx, cy, view.k, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,179,71,' + 0.5 * globeAlpha + ')'; ctx.lineWidth = 1; ctx.stroke();
-      }
-      graticule(view, z < 4 ? 15 : z < 40 ? 5 : 1, z < 4 ? 0.25 : 0.15);
-      if (geo) {
-        // Stilisierte Punktkarte: echte Umrisse, dargestellt als leuchtende Wabenpunkte.
-        const wA = Math.max(0, 1 - (z - 3) / 4), rA = Math.min(1, Math.max(0, (z - 2.5) / 3)) * Math.max(0, 1 - (z - 70) / 60), lA = Math.min(1, Math.max(0, (z - 30) / 40));
-        drawDots(geo.dots.world, 2, view, 1.8 * D, wA, ms, false);
-        drawDots(geo.dots.region, 3, view, 0.32 * D, rA, ms, true);
-        const nA = Math.min(1, Math.max(0, (z - 160) / 90));
-        // Feines Raster nur um Miltitz; zum Rand weich ausgeblendet, darunter das gröbere Raster.
-        const nearW = (lon, lat) => { const d = Math.hypot((lon - HOME.lon) * 0.626, lat - HOME.lat); return d < 0.2 ? 1 : d > 0.29 ? 0 : 1 - (d - 0.2) / 0.09; };
-        drawDots(geo.dots.local, 3, view, 0.03 * D, lA, ms, true, nA > 0 ? (lon, lat) => 1 - nA * 0.9 * nearW(lon, lat) : null);
-        drawDots(geo.dots.near, 3, view, 0.011 * D, nA, ms, true, nearW);
-        // Flüsse (Natural Earth, 50 m): kühler Akzent im goldenen HUD
-        strokeLines(geo.lines.water || [], view, '#6fd3e8', 1.3, Math.min(0.8, Math.max(0, (z - 6) / 20)));
-        strokeLines(geo.lines.world, view, '#ffb347', 0.6, 0.18 * wA);
-        if (z > 4) {
-          ctx.setLineDash([6, 5]); ctx.lineDashOffset = -ms / 40;
-          strokeLines(geo.lines.de, view, '#ff4433', 1.2, Math.min(0.85, (z - 4) / 10));
-          ctx.setLineDash([]);
+    const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
+    // Ruhige Kamerafahrt in Etappen mit Haltepunkten. Zoom = Vielfaches des Globusradius.
+    // [Startzeit ms, Länge, Breite, Zoom]  – zwischen zwei Punkten wird weich übergeblendet.
+    const KEYS = [
+      [0, -25, 22, 1], [1200, -25, 22, 1],          // Erde ruht kurz
+      [4200, 10, 49, 1.15],                          // langsame Drehung nach Europa
+      [6200, 10.4, 51.1, 3.4], [7600, 10.4, 51.1, 3.4],   // Deutschland, Halt
+      [9800, 13.9, 51.15, 16], [11200, 13.9, 51.15, 16],  // Sachsen / Oberlausitz, Halt
+      [13600, HOME.lon, HOME.lat, 190], [16500, HOME.lon, HOME.lat, 205] // Miltitz, Zielerfassung
+    ];
+    const TOTAL = 17000;
+    const CAPTIONS = [
+      [600, 3600, 'ERDE', 'Verbinde mit dem Satellitennetz'],
+      [5600, 8600, 'DEUTSCHLAND', ''],
+      [9900, 12600, 'SACHSEN · OBERLAUSITZ', ''],
+      [13900, 99999, 'MILTITZ', 'Gemeinde Nebelschütz · Ziel erfasst']
+    ];
+    function camera(ms) {
+      let i = 0;
+      while (i < KEYS.length - 2 && ms >= KEYS[i + 1][0]) i++;
+      const a = KEYS[i], b = KEYS[i + 1];
+      const t = ease(clamp01((ms - a[0]) / Math.max(1, b[0] - a[0])));
+      // Zoom logarithmisch blenden, sonst wirkt das Heranfliegen am Ende zu schnell.
+      return { lon: lerp(a[1], b[1], t), lat: lerp(a[2], b[2], t), z: Math.exp(lerp(Math.log(a[3]), Math.log(b[3]), t)) };
+    }
+    // Ruhige, einfarbige Punktkarte (kein Funkeln, keine Überblendung)
+    function dots(arr, stride, view, step, alpha, color, highlight) {
+      if (!arr || alpha <= 0.01) return;
+      const size = Math.max(1, Math.min(4.2, step * view.k * 0.4));
+      for (const flag of [0, 1]) {
+        if (flag && !highlight) break;
+        ctx.beginPath();
+        for (let i = 0; i < arr.length; i += stride) {
+          if (highlight && (arr[i + 2] === 1) !== Boolean(flag)) continue;
+          const q = project(arr[i], arr[i + 1], view.lon, view.lat, view.k, view.cx, view.cy);
+          if (!q || q[0] < -6 || q[0] > w + 6 || q[1] < -6 || q[1] > h + 6) continue;
+          ctx.rect(q[0] - size / 2, q[1] - size / 2, size, size);
         }
-      }
-      // Koordinatengitter mit Beschriftung (nah)
-      const gridA = Math.min(1, Math.max(0, (z - 90) / 80));
-      if (gridA > 0) {
-        ctx.font = '600 9px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,179,71,' + 0.55 * gridA + ')';
-        ctx.strokeStyle = 'rgba(255,179,71,' + 0.08 * gridA + ')'; ctx.lineWidth = 1;
-        for (let lat = 50.6; lat <= 52.0; lat += 0.1) {
-          const a = project(view.lon - 1.5, lat, view.lon, view.lat, view.k, cx, cy), b = project(view.lon + 1.5, lat, view.lon, view.lat, view.k, cx, cy);
-          if (!a || !b || a[1] < 40 || a[1] > h - 40) continue;
-          ctx.beginPath(); ctx.moveTo(0, a[1]); ctx.lineTo(w, b[1]); ctx.stroke();
-          ctx.fillText(lat.toFixed(1) + '°N', 8, a[1] - 3);
-        }
-        for (let lon = 13.0; lon <= 15.4; lon += 0.1) {
-          const a = project(lon, view.lat + 1, view.lon, view.lat, view.k, cx, cy), b = project(lon, view.lat - 1, view.lon, view.lat, view.k, cx, cy);
-          if (!a || !b || a[0] < 30 || a[0] > w - 40) continue;
-          ctx.beginPath(); ctx.moveTo(a[0], 0); ctx.lineTo(b[0], h); ctx.stroke();
-          const q = project(lon, view.lat, view.lon, view.lat, view.k, cx, cy);
-          ctx.fillText(lon.toFixed(1) + '°E', q[0] + 3, h * 0.2);
-        }
-      }
-      // Orte, je nach Zoomstufe; in der Nähe mit Entfernung zu Miltitz
-      ctx.font = '700 11px Rajdhani, sans-serif';
-      const taken = [[w / 2 + 40, h * 0.54 - 70, w / 2 + 300, h * 0.54 - 20], [w / 2 - 8, h * 0.54 - 8, w / 2 + 8, h * 0.54 + 8]]; // Platz für Zielbeschriftung und Zielpunkt
-      const free = (r) => !taken.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1]);
-      for (const t of TOWNS) {
-        const a = t.tier === 1 ? Math.min(1, Math.max(0, (z - 6) / 6)) * Math.max(0, 1 - (z - 120) / 60)
-          : t.tier === 2 ? Math.min(1, Math.max(0, (z - 35) / 30)) : Math.min(1, Math.max(0, (z - 140) / 60));
-        if (a <= 0.01) continue;
-        const q = project(t.lon, t.lat, view.lon, view.lat, view.k, cx, cy);
-        if (!q || q[0] < -50 || q[0] > w + 50 || q[1] < -20 || q[1] > h + 20) continue;
-        const km = distKm(HOME, t);
-        const label = t.tier === 1 ? t.name : t.name + ' · ' + (km < 10 ? km.toFixed(1) : Math.round(km)) + ' KM';
-        const tw = ctx.measureText(label).width;
-        const right = [q[0] - 4, q[1] - 10, q[0] + 12 + tw, q[1] + 6], left = [q[0] - 12 - tw, q[1] - 10, q[0] + 4, q[1] + 6];
-        const side = free(right) ? 'r' : free(left) ? 'l' : null;
-        if (!side) continue;
-        taken.push(side === 'r' ? right : left);
-        ctx.globalAlpha = a * 0.9;
-        ctx.fillStyle = '#ffb347'; ctx.fillRect(q[0] - 2.5, q[1] - 2.5, 5, 5);
-        ctx.fillStyle = 'rgba(255,225,180,0.95)'; ctx.fillText(label, side === 'r' ? q[0] + 8 : q[0] - 8 - tw, q[1] + 4);
-        if (t.tier === 3 && ms > 4800) {
-          ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(255,179,71,0.3)';
-          const hm = project(HOME.lon, HOME.lat, view.lon, view.lat, view.k, cx, cy);
-          if (hm) { ctx.beginPath(); ctx.moveTo(hm[0], hm[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); }
-          ctx.setLineDash([]);
-        }
+        ctx.fillStyle = flag ? highlight : color;
+        ctx.globalAlpha = alpha * (flag ? 1 : highlight ? 0.45 : 1);
+        ctx.fill();
       }
       ctx.globalAlpha = 1;
-      // Maßstab unten links
-      if (z > 20) {
-        const kmPerPx = 6371 / view.k;
-        const nice = [1, 2, 5, 10, 20, 50, 100, 200, 500].find(v => v / kmPerPx >= 90) || 500;
-        const len = nice / kmPerPx, x0 = 18, y0 = h - 60;
-        ctx.strokeStyle = 'rgba(255,179,71,0.85)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(x0, y0 - 5); ctx.lineTo(x0, y0); ctx.lineTo(x0 + len, y0); ctx.lineTo(x0 + len, y0 - 5); ctx.stroke();
-        ctx.font = '700 10px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,220,170,0.9)';
-        ctx.fillText(nice + ' KM', x0 + len + 8, y0 + 3);
+    }
+    function label(text, x, y, opts = {}) {
+      ctx.font = (opts.weight || 700) + ' ' + (opts.size || 13) + 'px Rajdhani, sans-serif';
+      const tw = ctx.measureText(text).width, padX = 7, hh = (opts.size || 13) + 8;
+      const left = opts.align === 'left' ? x - tw - padX * 2 - 10 : x + 10;
+      ctx.fillStyle = 'rgba(6,5,4,0.78)';
+      ctx.fillRect(left, y - hh / 2, tw + padX * 2, hh);
+      ctx.fillStyle = opts.color || '#ffffff';
+      ctx.fillText(text, left + padX, y + (opts.size || 13) * 0.36);
+      return [left, y - hh / 2, left + tw + padX * 2, y + hh / 2];
+    }
+    function render(ms) {
+      const cx = w / 2, cy = h * 0.5;
+      const R = Math.min(w, h) * 0.36;
+      const cam = camera(ms);
+      const view = { lon: cam.lon, lat: cam.lat, k: R * cam.z, cx, cy };
+      const z = cam.z;
+      ctx.clearRect(0, 0, w, h);
+      // Globus mit sanfter Atmosphäre, blendet beim Heranfliegen aus
+      const globeA = clamp01(1 - (z - 1.2) / 3);
+      if (globeA > 0) {
+        const g = ctx.createRadialGradient(cx, cy, view.k * 0.92, cx, cy, view.k * 1.14);
+        g.addColorStop(0, 'rgba(255,160,60,0)'); g.addColorStop(0.5, 'rgba(255,160,60,' + 0.14 * globeA + ')'); g.addColorStop(1, 'rgba(255,160,60,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, view.k * 1.14, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(16,12,8,' + 0.9 * globeA + ')'; ctx.beginPath(); ctx.arc(cx, cy, view.k, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,179,71,' + 0.35 * globeA + ')'; ctx.lineWidth = 1; ctx.stroke();
       }
-      // Zielerfassung auf Miltitz
+      graticule(view, z < 3 ? 20 : 5, 0.1 * clamp01(1 - (z - 8) / 10));
+      if (geo) {
+        const worldA = clamp01(1 - (z - 4) / 6), regionA = clamp01((z - 2.2) / 2) * clamp01(1 - (z - 60) / 60), localA = clamp01((z - 30) / 40);
+        const deA = clamp01((z - 1.8) / 1.6);
+        dots(geo.dots.world, 2, view, 1.8 * D, 0.55 * worldA, 'rgba(200,175,140,1)');
+        dots(geo.dots.region, 3, view, 0.32 * D, 0.8 * regionA, 'rgba(150,130,105,1)', 'rgba(255,190,100,1)');
+        dots(geo.dots.local, 3, view, 0.03 * D, 0.35 * localA * clamp01(1 - (z - 150) / 50), 'rgba(150,130,105,1)', 'rgba(230,175,100,1)');
+        dots(geo.dots.near, 3, view, 0.011 * D, 0.5 * clamp01((z - 140) / 50), 'rgba(210,165,100,1)');
+        strokeLines(geo.lines.world, view, '#d9b98a', 0.6, 0.22 * worldA);
+        strokeLines(geo.lines.water || [], view, '#6fb9cc', 1.1, 0.45 * clamp01((z - 10) / 12));
+        // Deutschland: ruhige, durchgezogene Goldlinie (kein Lauflicht)
+        strokeLines(geo.lines.de, view, '#ffc069', 1.4, 0.9 * deA * clamp01(1 - (z - 120) / 80));
+      }
+      const taken = [];
+      const homePt = project(HOME.lon, HOME.lat, view.lon, view.lat, view.k, cx, cy);
+      if (homePt && ms > 9000) taken.push([homePt[0] - 70, homePt[1] - 70, homePt[0] + 70, homePt[1] + 70]); // Platz für den Zielrahmen
+      const free = (r) => !taken.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1]);
+      // Wenige, gut lesbare Orte
+      for (const t of TOWNS) {
+        const a = t.tier === 1 ? clamp01((z - 3) / 2) * clamp01(1 - (z - 12) / 6)
+          : t.tier === 2 ? clamp01((z - 22) / 10) * clamp01(1 - (z - 150) / 30)
+          : clamp01((z - 150) / 40);
+        if (a <= 0.02) continue;
+        if (t.tier === 1 && !['BERLIN', 'DRESDEN', 'LEIPZIG', 'PRAG'].includes(t.name)) continue;
+        if (t.tier === 2 && !['BAUTZEN', 'GÖRLITZ', 'HOYERSWERDA', 'COTTBUS'].includes(t.name)) continue;
+        if (t.tier === 3 && !['KAMENZ', 'BISCHOFSWERDA', 'WITTICHENAU', 'PULSNITZ'].includes(t.name)) continue;
+        const q = project(t.lon, t.lat, view.lon, view.lat, view.k, cx, cy);
+        if (!q || q[0] < 20 || q[0] > w - 20 || q[1] < 60 || q[1] > h - 60) continue;
+        const km = distKm(HOME, t);
+        const text = t.tier === 3 ? t.name + '  ' + (km < 10 ? km.toFixed(1) : Math.round(km)) + ' km' : t.name;
+        ctx.font = '700 12px Rajdhani, sans-serif';
+        const tw = ctx.measureText(text).width + 24;
+        const r = [q[0] + 10, q[1] - 11, q[0] + 10 + tw, q[1] + 11], l = [q[0] - 10 - tw, q[1] - 11, q[0] - 10, q[1] + 11];
+        const side = free(r) ? 'r' : free(l) ? 'l' : null;
+        if (!side) continue;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = '#ffd08a'; ctx.beginPath(); ctx.arc(q[0], q[1], 3, 0, Math.PI * 2); ctx.fill();
+        taken.push(label(text, q[0], q[1], { size: 12, align: side === 'l' ? 'left' : 'right', color: '#f4ece0' }));
+        ctx.globalAlpha = 1;
+      }
+      // Zielerfassung Miltitz
       const home = project(HOME.lon, HOME.lat, view.lon, view.lat, view.k, cx, cy);
-      const lock = ease((ms - 4600) / 1300);
-      if (home && ms > 2600) {
-        if (z > 60) {
-          const ringA = Math.min(1, (z - 60) / 60);
-          sweep(home, ms, Math.min(w, h) * 0.32, ringA);
-          const pxPerKm = view.k / 6371;
-          ctx.font = '700 9px Rajdhani, sans-serif';
-          for (const km of [5, 10, 20]) {
-            const rr = km * pxPerKm;
-            if (rr > Math.max(w, h)) continue;
-            ctx.strokeStyle = 'rgba(255,179,71,' + 0.3 * ringA + ')'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
-            ctx.beginPath(); ctx.arc(home[0], home[1], rr, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-            ctx.fillStyle = 'rgba(255,179,71,' + 0.8 * ringA + ')'; ctx.fillText(km + ' KM', home[0] + rr * 0.7071 + 4, home[1] - rr * 0.7071 - 2);
-          }
+      if (home && ms > 9000) {
+        const mark = clamp01((ms - 9000) / 800);
+        ctx.globalAlpha = mark;
+        for (let r = 0; r < 2; r++) {
+          const pulse = ((ms / 2200) + r / 2) % 1;
+          ctx.strokeStyle = 'rgba(255,90,60,' + (0.55 * (1 - pulse)) + ')'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(home[0], home[1], 6 + pulse * Math.min(w, h) * 0.12, 0, Math.PI * 2); ctx.stroke();
         }
-        for (let r = 0; r < 3; r++) {
-          const pulse = ((ms / 1400) + r / 3) % 1;
-          ctx.strokeStyle = 'rgba(255,68,51,' + (0.7 * (1 - pulse)) + ')'; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.arc(home[0], home[1], 6 + pulse * Math.min(w, h) * 0.18, 0, Math.PI * 2); ctx.stroke();
-        }
-        ctx.fillStyle = '#ff4433'; ctx.save(); ctx.translate(home[0], home[1]); ctx.rotate(Math.PI / 4); ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+        ctx.fillStyle = '#ff5a3c'; ctx.save(); ctx.translate(home[0], home[1]); ctx.rotate(Math.PI / 4); ctx.fillRect(-4.5, -4.5, 9, 9); ctx.restore();
+        ctx.globalAlpha = 1;
+        const lock = ease((ms - 14200) / 1400);
         if (lock > 0) {
-          const size = lerp(Math.max(w, h) * 0.5, 46, lock);
-          ctx.strokeStyle = 'rgba(255,179,71,' + (0.4 + 0.6 * lock) + ')'; ctx.lineWidth = 1.4;
+          const size = lerp(Math.min(w, h) * 0.4, 44, lock);
+          ctx.strokeStyle = 'rgba(255,200,120,' + (0.3 + 0.7 * lock) + ')'; ctx.lineWidth = 1.6;
           for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
             ctx.beginPath();
             ctx.moveTo(home[0] + sx * size, home[1] + sy * (size - 14)); ctx.lineTo(home[0] + sx * size, home[1] + sy * size); ctx.lineTo(home[0] + sx * (size - 14), home[1] + sy * size);
             ctx.stroke();
           }
-          ctx.globalAlpha = lock;
-          ctx.beginPath(); ctx.moveTo(home[0] - size - 30, home[1]); ctx.lineTo(home[0] - 10, home[1]); ctx.moveTo(home[0] + 10, home[1]); ctx.lineTo(home[0] + size + 30, home[1]);
-          ctx.moveTo(home[0], home[1] - size - 30); ctx.lineTo(home[0], home[1] - 10); ctx.moveTo(home[0], home[1] + 10); ctx.lineTo(home[0], home[1] + size + 30); ctx.stroke();
-          ctx.font = '700 13px Rajdhani, sans-serif'; ctx.fillStyle = '#fff1d8';
-          ctx.fillText(HOME.name, home[0] + size + 10, home[1] - size + 4);
-          ctx.font = '600 11px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,179,71,0.9)';
-          ctx.fillText(HOME.lat.toFixed(3) + '°N  ' + HOME.lon.toFixed(3) + '°E', home[0] + size + 10, home[1] - size + 20);
-          ctx.globalAlpha = 1;
+          if (z > 120) {
+            const pxPerKm = view.k / 6371, rr = 5 * pxPerKm;
+            ctx.globalAlpha = lock * 0.8; ctx.setLineDash([3, 6]); ctx.strokeStyle = 'rgba(255,200,120,0.45)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.arc(home[0], home[1], rr, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            ctx.font = '700 11px Rajdhani, sans-serif'; ctx.fillStyle = 'rgba(255,220,170,0.85)'; ctx.fillText('5 KM', home[0] + rr * 0.7071 + 4, home[1] - rr * 0.7071 - 2);
+            ctx.globalAlpha = 1;
+          }
         }
       }
-      // HUD-Texte
-      const stages = [[0, 'ORBIT', 'VERBINDE SATELLITENLINK …'], [2300, 'EUROPA', 'ANFLUG EUROPA …'], [3600, 'DEUTSCHLAND', 'ANFLUG SACHSEN …'], [4600, 'OBERLAUSITZ', 'ZIEL WIRD ERFASST …'], [5900, 'ZIEL', 'STANDORT BESTÄTIGT · WILLKOMMEN ZURÜCK']];
-      const s = stages.filter(x => ms >= x[0]).pop();
-      el('introStage').textContent = s[1];
-      el('bootStatus').textContent = s[2];
-      el('introCoords').textContent = 'LAT ' + view.lat.toFixed(4) + ' · LON ' + view.lon.toFixed(4);
+      // HUD und große Bildunterschrift
+      const st = ms < 5600 ? ['ORBIT', 'SATELLITENLINK …'] : ms < 9900 ? ['DEUTSCHLAND', 'ANFLUG …'] : ms < 13900 ? ['OBERLAUSITZ', 'ZIEL WIRD GESUCHT …'] : ['ZIEL', 'STANDORT BESTÄTIGT'];
+      el('introStage').textContent = st[0];
+      el('bootStatus').textContent = st[1];
+      el('introCoords').textContent = 'LAT ' + view.lat.toFixed(3) + ' · LON ' + view.lon.toFixed(3);
       el('introZoom').textContent = (z < 10 ? z.toFixed(1) : Math.round(z)) + '×';
       el('bootPercent').textContent = String(Math.min(100, Math.round(ms / TOTAL * 100))).padStart(2, '0') + '%';
+      const cap = CAPTIONS.find(c => ms >= c[0] && ms < c[1]);
+      const capEl = el('introCaption');
+      if (capEl) {
+        const key = cap ? cap[2] : '';
+        if (capEl.dataset.key !== key) {
+          capEl.dataset.key = key;
+          capEl.classList.remove('is-on');
+          if (cap) { el('introCapMain').textContent = cap[2]; el('introCapSub').textContent = cap[3]; requestAnimationFrame(() => capEl.classList.add('is-on')); }
+        }
+      }
       const target = el('introTarget');
-      const label = 'ZIEL: ' + HOME.name;
-      target.textContent = ms > 5000 ? label.slice(0, Math.min(label.length, Math.floor((ms - 5000) / 35))) : '';
+      const name = (window.data?.profile?.name || '').trim();
+      target.textContent = ms > 15400 ? 'Willkommen zurück' + (name ? ', ' + name : '') + '.' : '';
     }
     function tick(now) {
       if (!start) start = now;
@@ -587,15 +619,32 @@
       raf = requestAnimationFrame(tick);
     }
     function resize() { w = innerWidth; h = innerHeight; ctx = fitCanvas(canvas, w, h, 2); }
+    // Mit Startmusik: erst ein Tipp (iPad/iPhone spielen Ton nur nach einer Berührung ab), dann Musik und Flug zusammen.
+    async function begin() {
+      const blob = await window.JarvisIntroMusic.get();
+      if (done) return;
+      if (!blob) { run(); return; }
+      const gate = el('introGate');
+      timers.forEach(clearTimeout); timers.length = 0; // auf den Tipp warten
+      gate.hidden = false;
+      gate.addEventListener('click', () => {
+        gate.hidden = true;
+        music = new Audio(URL.createObjectURL(blob));
+        music.volume = window.JarvisIntroMusic.volume();
+        music.play().catch(() => { music = null; });
+        timers.push(setTimeout(finish, 22000));
+        run();
+      }, { once: true });
+    }
     function run() {
       cancelAnimationFrame(raf); start = 0;
       if (allowed()) raf = requestAnimationFrame(tick);
-      else { render(6600); timers.push(setTimeout(finish, 2600)); }
+      else { render(16000); timers.push(setTimeout(finish, 2600)); }
     }
     resize();
-    addEventListener('resize', () => { if (!done) { resize(); if (!allowed()) render(6600); } }, { passive: true });
-    fetch('assets/geo/geo.json').then(r => r.ok ? r.json() : null).then(data => { geo = data; if (!allowed() && !done) render(6600); }).catch(() => { geo = null; });
-    run();
+    addEventListener('resize', () => { if (!done) { resize(); if (!allowed()) render(16000); } }, { passive: true });
+    fetch('assets/geo/geo.json').then(r => r.ok ? r.json() : null).then(data => { geo = data; if (!allowed() && !done) render(16000); }).catch(() => { geo = null; });
+    begin();
   })();
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountMotionPanel); else mountMotionPanel();

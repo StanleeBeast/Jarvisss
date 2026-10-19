@@ -170,6 +170,17 @@ input:focus,textarea:focus,select:focus{border-color:var(--gold)!important;box-s
 .intro-actions button{white-space:nowrap;min-height:36px!important;padding:8px 14px!important;font-size:11px!important;background:rgba(20,15,10,.85)!important}
 .intro-motion{border-color:var(--gold)!important;color:var(--gold-hi)!important}
 @keyframes intro-blink{50%{opacity:.2}}
+.intro-caption{position:absolute;left:0;right:0;bottom:calc(15vh + env(safe-area-inset-bottom));text-align:center;pointer-events:none;opacity:0;transform:translateY(10px);transition:opacity .9s ease,transform .9s ease}
+.intro-caption.is-on{opacity:1;transform:none}
+.intro-cap-main{display:inline-block;padding:8px 22px;background:rgba(6,5,4,.72);border-top:1px solid rgba(255,190,100,.5);border-bottom:1px solid rgba(255,190,100,.5);font-family:var(--hud-font);font-weight:700;font-size:clamp(22px,4.4vw,40px);letter-spacing:.32em;color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.9)}
+.intro-cap-sub{margin-top:8px;font-family:var(--hud-font);font-weight:600;font-size:13px;letter-spacing:.24em;color:#e9dccb;text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.9)}
+.intro-name{color:#fff!important;text-shadow:0 0 24px rgba(255,170,60,.35)!important}
+.intro-target{font-size:16px!important;color:#fff!important;letter-spacing:.18em!important}
+.intro-gate{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;gap:6px;width:220px;height:220px;border-radius:50%!important;border:1px solid rgba(255,190,100,.6)!important;background:radial-gradient(circle,rgba(40,26,12,.92),rgba(8,6,4,.92))!important;color:#fff!important;cursor:pointer;clip-path:none!important}
+.intro-gate b{font-family:var(--hud-font);font-size:18px;letter-spacing:.28em}
+.intro-gate small{font-size:12px;letter-spacing:.18em;color:#e9dccb;text-transform:uppercase}
+.intro-gate-ring{position:absolute;inset:-10px;border-radius:50%;border:1px dashed rgba(255,190,100,.45);animation:n1-spin 18s linear infinite}
+
 @media(max-width:600px){.intro-hud{font-size:9px;letter-spacing:.12em}.intro-corner.br{bottom:calc(70px + env(safe-area-inset-bottom))}}
 
 /* Animations-Einstellung im Bereich Design */
@@ -268,3 +279,5 @@ html.perf-lite #nexusOne .n1-core-stage::after,html.perf-lite .n1-settings-glyph
 html.perf-lite .n1-settings-dialog,html.perf-lite .dialog{background:rgba(14,12,10,.97)!important}
 html.perf-lite #nexusOne .n1-command,html.perf-lite #nexusOne .n1-answer,html.perf-lite #nexusOne .n1-news,html.perf-lite #nexusOne .n1-day{background:rgba(18,15,12,.9)!important}
 .motion-sub{margin:14px 0 6px;font-family:var(--hud-font);letter-spacing:.16em;font-size:12px;color:var(--gold);text-transform:uppercase}
+.music-pick{display:inline-flex;align-items:center;cursor:pointer;padding:8px 14px;border:1px solid var(--line-hi);color:var(--gold-hi);font-family:var(--hud-font);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:12px}
+.intro-gate[hidden]{display:none!important}
