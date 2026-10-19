@@ -195,7 +195,11 @@
       }).join('\n'));
       else lines.push('Nachrichten: gerade nicht abrufbar.');
     }
-    lines.push('Kalendertermine sind nicht verbunden.');
+    if (b.calendar) {
+      if (b.calendar.error && !b.calendar.events?.length) lines.push('Kalender: gerade nicht abrufbar.');
+      else lines.push(b.calendar.events.length ? 'Termine heute: ' + b.calendar.events.map(e => (e.allDay ? 'ganztägig' : fmtTime(e.start)) + ' ' + e.title).join('; ') + '.' : 'Heute stehen keine Kalendertermine an.');
+    } else lines.push('Kalender: nicht verbunden (Tagesplan → Kalender verbinden).');
+    if (b.mail?.important?.length) lines.push('Wichtige Mails: ' + b.mail.important.map(m => m.from + ': ' + m.subject).join('; ') + '.');
     return lines.join('\n\n');
   }
   async function showBriefing(id) {
