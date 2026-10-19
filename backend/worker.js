@@ -266,7 +266,7 @@ export default {
       if (auth.response) return auth.response;
       try {
         const result = await getNews(url.searchParams.get("section") || "local");
-        return json(result, result.error ? 400 : 200, headers);
+        return json(result, result.error === "invalid_news_section" ? 400 : 200, headers);
       } catch {
         return json({ error: "news_source_unavailable" }, 502, headers);
       }
