@@ -12,11 +12,18 @@
   box.innerHTML = '<label class="hint">Sprechweise<select id="ttsMode"><option value="quality">Beste Qualität (ElevenLabs Multilingual v2)</option><option value="fast">Schnell &amp; günstiger (ElevenLabs Flash v2.5)</option></select></label>'
     + '<div class="voice-actions"><button type="button" id="voicePreview">Hörprobe (kostenlos)</button></div>'
     + '<label class="hint"><input type="checkbox" id="convMode" style="width:auto;margin-right:8px">Gesprächsmodus: Nach einer gesprochenen Frage hört JARVIS nach seiner Antwort automatisch wieder zu</label>'
+    + '<label class="hint"><input type="checkbox" id="hfMode" style="width:auto;margin-right:8px">Offenes Mikrofon: Beim Start (ein Tipp) hört JARVIS dauerhaft zu – ohne Knopf und ohne Senden. Nach 2 Minuten Ruhe reagiert er nur noch auf „Jarvis“.</label>'
+    + '<label class="hint"><input type="checkbox" id="bargeIn" style="width:auto;margin-right:8px">Unterbrechen: Wenn ich rede, während JARVIS spricht, hört er sofort auf (bei Fehlauslösern durch den eigenen Lautsprecher ausschalten)</label>'
     + '<p class="hint" id="voiceState">Stimmen werden geladen …</p>';
   select.closest('label')?.after(box);
   const mode = el('ttsMode');
   mode.value = data.profile.ttsMode || 'quality';
   mode.onchange = () => { data.profile.ttsMode = mode.value; saveData(); toast('Sprechweise gespeichert.'); };
+  const hfBox = el('hfMode'), barge = el('bargeIn');
+  hfBox.checked = data.profile.handsFree !== false;
+  barge.checked = data.profile.bargeIn !== false;
+  hfBox.onchange = () => { data.profile.handsFree = hfBox.checked; saveData(); if (!hfBox.checked) window.JarvisSpeech?.handsFreeStop(); toast(hfBox.checked ? 'Offenes Mikrofon an – ab dem nächsten Start oder per Tipp auf das Mikrofon.' : 'Offenes Mikrofon aus.'); };
+  barge.onchange = () => { data.profile.bargeIn = barge.checked; saveData(); };
   const conv = el('convMode');
   conv.checked = data.profile.conversation !== false;
   conv.onchange = () => { data.profile.conversation = conv.checked; saveData(); toast(conv.checked ? 'Gesprächsmodus an.' : 'Gesprächsmodus aus.'); };
