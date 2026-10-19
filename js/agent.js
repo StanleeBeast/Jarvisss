@@ -164,7 +164,7 @@
 
   const CATEGORY = { A: 'A · Lesen', B: 'B · Vorschlagen' };
   const TOOL_TEXT = {
-    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', get_calendar_events: 'Kalender lesen (Abo-Link, nur lesen)', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen', list_mails: 'Mails lesen (über die Home-Station)', propose_mail_reply: 'Mail-Antwort vorschlagen (Senden nur nach Bestätigung)',
+    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', get_calendar_events: 'Kalender lesen (Abo-Link, nur lesen)', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen', list_mails: 'Mails lesen (über die Home-Station)', web_search: 'Im Internet suchen (mit Quellen)', remember: 'Sich Wichtiges merken (sichtbar und löschbar im Gedächtnis)', propose_mail_reply: 'Mail-Antwort vorschlagen (Senden nur nach Bestätigung)',
     propose_task: 'Aufgabe vorschlagen', propose_task_update: 'Aufgabenänderung vorschlagen', propose_memory: 'Erinnerung vorschlagen', propose_alarm: 'Wecker über Kurzbefehl vorschlagen', draft_task: 'Text-Entwurf (ohne Datenbank)'
   };
   function meter(label, used, max) {
