@@ -21,7 +21,7 @@
   const memoryList = el('memories');
   memoryList?.before(statusLine);
   const hint = memoryList?.closest('.panel')?.querySelector('.hint');
-  if (hint) hint.textContent = 'Nur Informationen, die du ausdrücklich speicherst. Mit eingerichteter D1-Datenbank werden sie zwischen deinen Geräten synchronisiert, sonst bleiben sie in diesem Browser. Bitte keine Passwörter oder hochsensiblen Daten speichern.';
+  if (hint) hint.textContent = 'Was du speicherst – und Wichtiges, das du JARVIS über dich erzählst, wenn „JARVIS merkt sich Wichtiges selbst“ an ist (Stimme & KI). Jeder Eintrag lässt sich hier löschen. Mit eingerichteter D1-Datenbank werden sie zwischen deinen Geräten synchronisiert, sonst bleiben sie in diesem Browser. Bitte keine Passwörter oder hochsensiblen Daten speichern.';
 
   function renderStatus() {
     const legacy = data.memories.filter(m => isLocalOnly(m) && m.legacyLocal).length;

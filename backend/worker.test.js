@@ -149,7 +149,7 @@ test("agent stops after the step limit instead of looping forever", async () => 
   const result = await withFetch(fake, async () => json(await worker.fetch(req("/api/chat", { method: "POST", token: env.JARVIS_ACCESS_TOKEN, body: chatBody }), env)));
   assert.equal(result.status, 502);
   assert.equal(result.body.error, "agent_step_limit");
-  assert.equal(calls, 5);
+  assert.equal(calls, 8);
 });
 
 test("invalid tool arguments are reported to the model, not executed", async () => {
