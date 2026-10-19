@@ -21,7 +21,7 @@
     { id: 'autonomy', label: 'Autonomie', view: 'view-autonomy' },
     { id: 'settings', label: 'Stimme & KI', view: 'view-settings' },
     { id: 'devices', label: 'Geräte', view: 'view-devices' },
-    { id: 'context', label: 'iPhone & iPad', view: 'view-context' },
+    { id: 'context', label: 'iPhone, iPad & Alexa', view: 'view-context' },
     { id: 'automation', label: 'Automatisierungen', view: 'view-automation' },
     { id: 'memory', label: 'Gedächtnis', view: 'view-memory' },
     { id: 'improve', label: 'Verbesserungen', view: 'view-improve' },

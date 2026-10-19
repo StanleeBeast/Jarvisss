@@ -20,7 +20,16 @@
     + '<p class="hint" id="ctxKeyState"></p><div class="ctx-key" id="ctxKeyBox" hidden><code id="ctxKey"></code><button type="button" id="ctxKeyCopy">Kopieren</button></div>'
     + '<div class="inputrow"><button type="button" class="primary" id="ctxKeyNew">Schlüssel erzeugen</button><button type="button" id="ctxKeyRevoke">Widerrufen</button></div></div>'
     + '<div class="panel ctx-guide"><h2>⚙ SO RICHTEST DU ES EIN</h2><ol class="ctx-steps"><li>Öffne die App <b>Kurzbefehle</b> → unten <b>Automation</b> → <b>+</b> (bzw. „Neue Automation“).</li><li>Wähle den Auslöser (siehe unten) und <b>„Sofort ausführen“</b>.</li><li>Aktion hinzufügen: <b>„Inhalte von URL abrufen“</b>. Tippe auf den Pfeil und stelle ein:<ul><li>URL: <code id="ctxUrl"></code> <button type="button" id="ctxUrlCopy">Kopieren</button></li><li>Methode: <b>POST</b></li><li>Header: <b>Authorization</b> = <code>Bearer DEIN-SCHLÜSSEL</code></li><li>Anfragetext: <b>JSON</b>, Felder wie unten</li></ul></li><li>Fertig. Ab jetzt meldet dein iPhone/iPad das automatisch.</li></ol>'
-    + '<div id="ctxRecipes"></div></div></div>';
+    + '<div id="ctxRecipes"></div></div>'
+    + '<div class="panel ctx-guide" id="alexaPanel"><h2>🔊 ALEXA</h2><p class="hint">Danach geht: <b>„Alexa, frag mein Jarvis, was heute ansteht.“</b> Ein eigener Skill nur für dein Amazon-Konto – keine Prüfung durch Amazon nötig. Antworten dauern höchstens ein paar Sekunden; braucht JARVIS länger, kommt die Antwort als Push aufs Handy. Vorschläge bestätigst du in der App.</p>'
+    + '<p class="hint" id="alexaState"></p><ol class="ctx-steps">'
+    + '<li>Öffne <b>developer.amazon.com/alexa/console/ask</b> und melde dich mit <b>demselben Amazon-Konto</b> an wie deine Alexa (kostenloses Entwicklerkonto).</li>'
+    + '<li><b>„Skill erstellen“</b>: Name „Mein Jarvis“, Sprache <b>Deutsch</b>, Typ <b>Benutzerdefiniert</b>, Hosting <b>„Eigene bereitstellen“</b> (Provision your own), Vorlage „Von vorne beginnen“.</li>'
+    + '<li>Links <b>Interaktionsmodell → JSON-Editor</b>: alles ersetzen durch dieses Modell <button type="button" id="alexaModelCopy">Modell kopieren</button> → „Modell speichern“ → „Modell erstellen“.</li>'
+    + '<li>Oben die <b>Skill-ID</b> kopieren (beginnt mit amzn1.ask.skill…) und hier einfügen:<div class="ctx-key"><input id="alexaSkill" placeholder="amzn1.ask.skill.…" autocomplete="off"><button type="button" class="primary" id="alexaSetup">Endpunkt erzeugen</button></div></li>'
+    + '<li>Links <b>Endpunkt → HTTPS</b>, Standard-Region: diese Adresse eintragen <div class="ctx-key" id="alexaEpBox" hidden><code id="alexaEp"></code><button type="button" id="alexaEpCopy">Kopieren</button></div> SSL-Zertifikat: <b>„Mein Endpunkt ist eine Subdomain einer Domain mit Wildcard-Zertifikat“</b> → Speichern.</li>'
+    + '<li>Oben <b>Testen</b> → „Entwicklung“ einschalten. Fertig – der Skill ist auf deinen Echo-Geräten und in der Alexa-App verfügbar.</li></ol>'
+    + '<button type="button" id="alexaRemove">Alexa trennen</button></div></div>';
   document.querySelector('main')?.append(section);
 
   const origin = () => { try { return new URL(apiBase()).origin; } catch { return ''; } };
@@ -39,7 +48,7 @@
   el('ctxUrlCopy').onclick = () => copy(origin() + '/api/context');
   el('ctxKeyCopy').onclick = () => copy(el('ctxKey').textContent);
   const fmtAge = (m) => m < 2 ? 'gerade eben' : m < 60 ? 'vor ' + m + ' Min.' : m < 48 * 60 ? 'vor ' + Math.round(m / 60) + ' Std.' : 'vor ' + Math.round(m / 1440) + ' Tagen';
-  async function load() {
+  let load = async function () {
     el('ctxUrl').textContent = (origin() || 'https://DEIN-WORKER.workers.dev') + '/api/context';
     if (typeof apiBase !== 'function' || !apiBase() || !hasCredentials()) { el('ctxList').replaceChildren(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'Zuerst das Backend unter „Stimme & KI“ verbinden.' })); return; }
     const res = await api('/api/context');
@@ -47,7 +56,7 @@
     const items = res.body.items || [];
     el('ctxList').replaceChildren(...(items.length ? items.map(i => { const d = document.createElement('div'); d.className = 'item'; d.append(Object.assign(document.createElement('strong'), { textContent: i.label + ': ' + (typeof i.value === 'boolean' ? (i.value ? 'ja' : 'nein') : i.value) + (i.type === 'battery' ? ' %' : '') }), Object.assign(document.createElement('small'), { textContent: fmtAge(i.minutesAgo) + (i.device ? ' · ' + i.device : '') })); return d; }) : [Object.assign(document.createElement('p'), { className: 'hint', textContent: 'Noch nichts gemeldet.' })]));
     el('ctxKeyState').textContent = res.body.keyCreatedAt ? 'Ein Schlüssel ist aktiv (erzeugt ' + new Date(res.body.keyCreatedAt).toLocaleString('de-DE') + ').' : 'Noch kein Schlüssel erzeugt.';
-  }
+  };
   el('ctxKeyNew').onclick = () => confirmAction('Neuen Kurzbefehl-Schlüssel erzeugen?', 'Ein vorhandener Schlüssel wird ungültig – du musst ihn dann in deinen Kurzbefehlen ersetzen.', async () => {
     const res = await api('/api/context/key', { method: 'POST', body: {} });
     if (!res.ok) { toast('Nicht erzeugt: ' + window.JarvisCore.errorText(res.error || res.body?.error)); return; }
@@ -60,5 +69,21 @@
     el('ctxKeyBox').hidden = true; load();
   });
   el('ctxClear').onclick = () => confirmAction('Alles vergessen?', 'JARVIS löscht, was die Kurzbefehle zuletzt gemeldet haben. Neue Meldungen kommen danach wieder an.', async () => { await api('/api/context', { method: 'DELETE' }); load(); });
-  window.JarvisContext = { load };
+  el('alexaModelCopy').onclick = async () => { try { const t = await (await fetch('assets/alexa/interaction-model-de.json')).text(); await copy(t); } catch { toast('Modell konnte nicht geladen werden.'); } };
+  el('alexaEpCopy').onclick = () => copy(el('alexaEp').textContent);
+  el('alexaSetup').onclick = async () => {
+    const res = await api('/api/alexa/setup', { method: 'POST', body: { skillId: el('alexaSkill').value.trim() } });
+    if (!res.ok) { toast(res.body?.error === 'invalid_skill_id' ? 'Das ist keine gültige Skill-ID (amzn1.ask.skill.…).' : 'Fehler: ' + window.JarvisCore.errorText(res.error || res.body?.error)); return; }
+    el('alexaEp').textContent = res.body.endpoint; el('alexaEpBox').hidden = false;
+    el('alexaState').textContent = 'Endpunkt erzeugt – nur jetzt sichtbar. Trage ihn im Alexa-Skill ein (Schritt 5). Ein neuer Endpunkt macht den alten ungültig.';
+  };
+  el('alexaRemove').onclick = () => confirmAction('Alexa trennen?', 'Der Alexa-Skill kann JARVIS danach nicht mehr erreichen.', async () => { await api('/api/alexa/setup', { method: 'DELETE' }); el('alexaEpBox').hidden = true; loadAlexa(); });
+  async function loadAlexa() {
+    const res = await api('/api/alexa/setup');
+    el('alexaState').textContent = res.ok && res.body.keyCreatedAt ? 'Verbunden mit Skill ' + res.body.skillId + ' (eingerichtet ' + new Date(res.body.keyCreatedAt).toLocaleDateString('de-DE') + ').' : 'Noch nicht eingerichtet.';
+    if (res.ok && res.body.skillId) el('alexaSkill').value = res.body.skillId;
+  }
+  const baseLoad = load;
+  load = async () => { await baseLoad(); if (typeof apiBase === 'function' && apiBase() && hasCredentials()) loadAlexa(); };
+  window.JarvisContext = { load: () => load() };
 })();

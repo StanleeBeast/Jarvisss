@@ -572,7 +572,7 @@ async function remindersReady(env) {
   } catch { return false; }
 }
 
-export async function runAgent(payload, env) {
+export async function runAgent(payload, env, opts = {}) {
   // Monatsgrenze: ab 80 % günstigeres Modell und keine Websuche, damit das Budget bis Monatsende reicht.
   const budget = await budgetState(env);
   const saving = budget.level !== "ok";
@@ -580,7 +580,8 @@ export async function runAgent(payload, env) {
   const timezone = safeTimezone(payload.timezone);
   const ctx = { env, tools, timezone, proposals: [], remindersReady: await remindersReady(env), autoMemory: payload?.profile?.autoMemory !== false };
   const fallbackModel = env.OPENAI_MODEL || DEFAULT_MODEL;
-  let model = saving ? fallbackModel : (env.OPENAI_AGENT_MODEL || DEFAULT_AGENT_MODEL);
+  // opts.fast: schnelles Modell ohne Reasoning (z. B. für Alexa, die nur ~8 Sekunden wartet)
+  let model = saving || opts.fast ? fallbackModel : (env.OPENAI_AGENT_MODEL || DEFAULT_AGENT_MODEL);
   // Was die Apple-Kurzbefehle zuletzt gemeldet haben (Ort, Fokus, Akku …).
   if (env.DB) { try { ctx.deviceContext = contextSummary(await getContext(env.DB)); } catch { /* Tabelle fehlt */ } }
   // Gedächtnis aus der Datenbank (geräteübergreifend) zusätzlich zu dem, was das Gerät mitschickt.
@@ -598,7 +599,7 @@ export async function runAgent(payload, env) {
     await addUsage(env, { chatRequests: 1, ...usage, model });
     return { ...result, toolLog, usage };
   };
-  for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
+  for (let round = 0; round < (opts.maxRounds || MAX_AGENT_ROUNDS); round++) {
     const call = (m) => fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Authorization": "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },

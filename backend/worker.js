@@ -15,6 +15,7 @@ import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL, runAgent } f
 import { handleAutonomyApi, runAutonomy } from "./autonomy.js";
 import { handleContextApi } from "./context.js";
 import { handleImprovementsApi, improvementStatus } from "./improve.js";
+import { handleAlexaApi } from "./alexa.js";
 import { checkBudget, addUsage, handleUsageApi, getUsage, limits, budgetState, EXTRA_COST } from "./usage.js";
 import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
@@ -266,7 +267,7 @@ async function prepareDay(env, timezone) {
 }
 export { prepareDay };
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
     const headers = corsHeaders(origin, env);
     if (origin && !allowedOrigins(env).includes(origin)) return json({ error: "origin_not_allowed" }, 403, headers);
@@ -305,6 +306,8 @@ export default {
     if (plannerResponse) return plannerResponse;
     const mailResponse = await handleMailApi(request, env, headers, url);
     if (mailResponse) return mailResponse;
+    const alexaResponse = await handleAlexaApi(request, env, headers, url, ctx, runAgent);
+    if (alexaResponse) return alexaResponse;
     const improveResponse = await handleImprovementsApi(request, env, headers, url);
     if (improveResponse) return improveResponse;
     const contextResponse = await handleContextApi(request, env, headers, url);

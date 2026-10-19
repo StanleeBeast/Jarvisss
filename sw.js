@@ -1,7 +1,7 @@
 // JARVIS Service Worker: Netzwerk zuerst, Cache nur als Offline-Rückfall.
 // So erscheinen neue Deployments sofort, ohne dass vergessene Cache-Versionen alte Dateien festhalten.
 // API-Anfragen an das Backend (andere Origin) werden nie zwischengespeichert.
-const CACHE='jarvis-pwa-v30';
+const CACHE='jarvis-pwa-v31';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./css/stark.css','./js/visuals.js','./assets/geo/geo.json','./vendor/fonts/rajdhani/rajdhani-latin-500-normal.woff2','./vendor/fonts/rajdhani/rajdhani-latin-600-normal.woff2','./vendor/fonts/rajdhani/rajdhani-latin-700-normal.woff2','./js/auth.js','./js/system.js','./js/memory.js','./js/agent.js','./js/automation.js','./js/study.js','./js/whatsapp-parse.js','./js/messages.js','./js/planner.js','./js/mail.js','./js/autonomy.js','./js/context.js','./js/improve.js','./js/voice.js','./js/speech.js','./js/tasks.js','./js/shell.js'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('jarvis-pwa-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
