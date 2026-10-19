@@ -364,3 +364,7 @@ body.n1-settings-open .hf-pill{display:none!important}
 .ctx-recipe small{display:block;color:var(--muted);font-size:12px;line-height:1.45}
 .imp-link{display:inline-flex;align-items:center;padding:7px 12px;border:1px solid var(--line);color:var(--gold-hi);font-size:13px}.imp-entry[data-kind="live"]::before{background:var(--good)}
 .ctx-key input{flex:1;min-width:220px}
+/* Laptop */
+.install-pill{position:fixed;right:18px;bottom:18px;z-index:55;padding:10px 16px!important;border:1px solid var(--line-hi)!important;background:rgba(14,12,10,.94)!important;color:var(--gold-hi)!important;font-family:var(--hud-font);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:12px;clip-path:none!important;border-radius:999px!important}
+.install-pill[hidden]{display:none!important}
+@media (min-width:1500px){#nexusOne .n1-main,#nexusOne main{max-width:1440px;margin-left:auto;margin-right:auto}}
