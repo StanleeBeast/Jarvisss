@@ -608,7 +608,7 @@
         }
       }
       const target = el('introTarget');
-      const name = (window.data?.profile?.name || '').trim();
+      const name = ((typeof data !== 'undefined' && data?.profile?.name) || '').trim();
       target.textContent = ms > 15400 ? 'Willkommen zurück' + (name ? ', ' + name : '') + '.' : '';
     }
     function tick(now) {
@@ -623,15 +623,21 @@
     async function begin() {
       const blob = await window.JarvisIntroMusic.get();
       if (done) return;
-      if (!blob) { run(); return; }
+      // Startknopf, wenn Musik gewählt ist oder JARVIS mit offenem Mikrofon starten soll (ein Tipp gibt beides frei).
+      const voice = (typeof data === 'undefined' || data?.profile?.handsFree !== false) && typeof apiBase === 'function' && apiBase() && typeof hasCredentials === 'function' && hasCredentials();
+      if (!blob && !voice) { run(); return; }
+      el('introGate').querySelector('small').textContent = blob && voice ? 'Tippen – Musik & Mikrofon' : blob ? 'Tippen – mit Musik' : 'Tippen – JARVIS hört zu';
       const gate = el('introGate');
       timers.forEach(clearTimeout); timers.length = 0; // auf den Tipp warten
       gate.hidden = false;
       gate.addEventListener('click', () => {
         gate.hidden = true;
-        music = new Audio(URL.createObjectURL(blob));
-        music.volume = window.JarvisIntroMusic.volume();
-        music.play().catch(() => { music = null; });
+        if (voice) window.JarvisSpeech?.handsFreeStart();
+        if (blob) {
+          music = new Audio(URL.createObjectURL(blob));
+          music.volume = window.JarvisIntroMusic.volume();
+          music.play().catch(() => { music = null; });
+        }
         timers.push(setTimeout(finish, 22000));
         run();
       }, { once: true });

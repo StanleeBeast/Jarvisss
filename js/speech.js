@@ -11,7 +11,7 @@
   const $ = (id) => document.getElementById(id);
   const legacyListen = window.listen, legacySpeakLocal = window.speakLocal;
   const body = document.body;
-  const profile = () => (window.data && data.profile) || {};
+  const profile = () => (typeof data !== 'undefined' && data?.profile) || {}; // data ist eine globale let-Variable (kein window-Eigenschaft)
   const backendReady = () => typeof apiBase === 'function' && apiBase() && hasCredentials();
 
   // --- Ein Audio-Element, beim ersten Tippen freigeschaltet (iOS spielt sonst nach Wartezeiten nichts ab) ---
@@ -222,17 +222,143 @@
   }
   // Gesprächsmodus: nach der gesprochenen Antwort auf eine gesprochene Frage wieder zuhören.
   function afterSpeech() {
+    if (hf?.on) { voiceTurn = false; return; }
     if (!voiceTurn) return;
     voiceTurn = false;
     if (profile().conversation === false || document.hidden) return;
     setTimeout(() => { if (!rec && !body.classList.contains('jarvis-speaking')) listen({ auto: true }); }, 350);
   }
 
+  // --- Offenes Mikrofon („Freihändig“) -----------------------------------------------------------------
+  // Ein dauerhaft offener Mikrofon-Strom; jede Äußerung wird an Pausen erkannt, transkribiert und gesendet.
+  // Spricht der Nutzer, während JARVIS redet, bricht JARVIS ab und hört zu (Unterbrechen).
+  // Nach 2 Minuten ohne Gespräch reagiert JARVIS nur noch auf Sätze mit „Jarvis“ (Schutz vor Fernseher & Co.).
+  const AWAKE_MS = 120000;
+  const hf = { on: false, stream: null, ctx: null, analyser: null, buf: null, raf: 0, rec: null, parts: [], speechAt: 0, lastVoice: 0, onsetAt: 0, noise: 0.01, busy: false, queue: [], lastTalk: 0, interrupted: null };
+  function hfLevel() { hf.analyser.getFloatTimeDomainData(hf.buf); let s2 = 0; for (const v of hf.buf) s2 += v * v; return Math.sqrt(s2 / hf.buf.length); }
+  function hfUi() {
+    body.classList.toggle('jarvis-handsfree', hf.on);
+    const mic = $('n1Mic');
+    if (mic) { mic.classList.toggle('is-open', hf.on); mic.setAttribute('aria-label', hf.on ? 'Offenes Mikrofon ausschalten' : 'Spracheingabe'); }
+  }
+  async function handsFreeStart() {
+    if (hf.on) return true;
+    if (!backendReady() || !supported()) { toast('Offenes Mikrofon braucht das verbundene Backend.'); return false; }
+    try {
+      hf.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch (e) { toast(ERR[e?.name] || 'Mikrofon konnte nicht gestartet werden.'); return false; }
+    hf.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = hf.ctx.createMediaStreamSource(hf.stream);
+    hf.analyser = hf.ctx.createAnalyser(); hf.analyser.fftSize = 1024; src.connect(hf.analyser);
+    hf.buf = new Float32Array(hf.analyser.fftSize);
+    hf.on = true; hf.lastTalk = Date.now(); hf.noise = 0.01;
+    const t0 = performance.now();
+    hfUi();
+    const tick = () => {
+      if (!hf.on) return;
+      const now = performance.now(), l = hfLevel();
+      const speaking = body.classList.contains('jarvis-speaking');
+      if (!hf.rec) hf.noise = hf.noise * 0.995 + Math.min(l, 0.05) * 0.005; // Grundrauschen nachführen
+      if (now - t0 < 500) { hf.raf = requestAnimationFrame(tick); return; }
+      // Während JARVIS spricht, höhere Schwelle (Rest-Echo aus dem Lautsprecher) und länger anhaltende Stimme nötig.
+      const thr = Math.max(speaking ? 0.06 : 0.02, hf.noise * (speaking ? 4.5 : 2.6));
+      if (l > thr) {
+        if (!hf.onsetAt) hf.onsetAt = now;
+        hf.lastVoice = now;
+        if (!hf.rec && (!speaking || profile().bargeIn !== false) && now - hf.onsetAt > (speaking ? 320 : 140)) hfBegin(speaking);
+      } else if (!hf.rec && now - hf.lastVoice > 250) hf.onsetAt = 0;
+      if (hf.rec) {
+        energy(Math.min(1, .25 + l * 12));
+        if (now - hf.lastVoice > 1100 || now - hf.speechAt > 30000) hfEnd();
+      }
+      hf.raf = requestAnimationFrame(tick);
+    };
+    hf.raf = requestAnimationFrame(tick);
+    window.n1Show?.('Ich höre zu. Sprich einfach – du kannst mich jederzeit unterbrechen.', 'JARVIS · OFFENES MIKROFON');
+    return true;
+  }
+  function handsFreeStop() {
+    hf.on = false;
+    cancelAnimationFrame(hf.raf);
+    try { hf.rec?.stop(); } catch { /* egal */ }
+    hf.rec = null;
+    hf.stream?.getTracks().forEach(t => t.stop());
+    hf.ctx?.close?.();
+    hf.stream = hf.ctx = null;
+    setListening(false); hfUi();
+  }
+  function hfBegin(bargeIn) {
+    if (bargeIn) {
+      // Unterbrechen: Sprechen sofort beenden und merken, was JARVIS gerade sagen wollte.
+      hf.interrupted = currentSpeech;
+      stop();
+    }
+    const type = mime();
+    hf.parts = [];
+    hf.rec = new MediaRecorder(hf.stream, type ? { mimeType: type } : undefined);
+    hf.rec.ondataavailable = (e) => { if (e.data?.size) hf.parts.push(e.data); };
+    hf.rec.start(200);
+    hf.speechAt = performance.now();
+    setListening(true);
+  }
+  function hfEnd() {
+    const rec = hf.rec, parts = hf.parts, dur = performance.now() - hf.speechAt;
+    hf.rec = null; hf.onsetAt = 0;
+    setListening(false); energy(null);
+    rec.onstop = () => {
+      if (dur < 450) return; // Räuspern, Klicks
+      const blob = new Blob(parts, { type: rec.mimeType || 'audio/mp4' });
+      hf.queue.push(blob);
+      hfDrain();
+    };
+    try { rec.stop(); } catch { /* egal */ }
+  }
+  async function hfDrain() {
+    if (hf.busy || !hf.queue.length) return;
+    hf.busy = true;
+    try {
+      while (hf.queue.length) {
+        const blob = hf.queue.shift();
+        const res = await fetch(apiBase() + '/api/stt', { method: 'POST', headers: { 'Authorization': 'Bearer ' + await authToken(), 'Content-Type': (blob.type || 'audio/mp4').split(';')[0] }, body: blob })
+          .then(async r => ({ ok: r.ok, body: await r.json().catch(() => ({})) }), () => ({ ok: false, body: { error: 'network' } }));
+        if (!res.ok) { toast('Spracherkennung: ' + (window.JarvisCore?.errorText(res.body?.error) || res.body?.error)); continue; }
+        let text = (res.body?.text || '').trim();
+        if (!text || /^(untertitel|vielen dank( fürs zuschauen)?|danke)[.!]?$/i.test(text)) continue; // typische Fehlerkennungen von Stille
+        const awake = Date.now() - hf.lastTalk < AWAKE_MS;
+        if (!awake && !/jarvis/i.test(text)) continue; // schläft: nur mit „Jarvis“ wecken
+        hf.lastTalk = Date.now();
+        if (hf.interrupted) {
+          // Unsichtbar für den Chat: Die KI erfährt, wobei sie unterbrochen wurde, und nimmt den Faden später wieder auf.
+          note = { interruptedWhile: hf.interrupted.slice(0, 400) };
+          hf.interrupted = null;
+        }
+        window.n1Send ? await window.n1Send(text) : null;
+        hf.lastTalk = Date.now();
+      }
+    } finally { hf.busy = false; }
+  }
+  let currentSpeech = '', note = null;
+  const plainSpeak = speak;
+  async function speakTracked(text) { currentSpeech = String(text || ''); try { await plainSpeak(text); } finally { if (!body.classList.contains('jarvis-speaking')) currentSpeech = ''; } }
+  // Ohne Startknopf der Animation (oder nach dem Zurückkehren in die App): ein Tipp startet das offene Mikrofon.
+  const pill = document.createElement('button');
+  pill.type = 'button'; pill.id = 'hfPill'; pill.className = 'hf-pill'; pill.hidden = true;
+  pill.innerHTML = '<span></span>Tippen – JARVIS hört zu';
+  pill.addEventListener('click', async () => { if (await handsFreeStart()) pill.hidden = true; });
+  document.body.append(pill);
+  function offerHandsFree() { if (!hf.on && profile().handsFree !== false && backendReady() && supported()) pill.hidden = false; }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && hf.on) { handsFreeStop(); hf.resume = true; }
+    else if (!document.hidden && hf.resume) { hf.resume = false; offerHandsFree(); } // iOS gibt das Mikrofon nur nach einem Tipp wieder frei
+  });
+  new MutationObserver(() => { if (body.classList.contains('intro-done') && !hf.on) setTimeout(offerHandsFree, 600); }).observe(body, { attributes: true, attributeFilter: ['class'] });
+
   // Bestehende Aufrufer übernehmen (globale Funktionen und direkt gebundene Knöpfe).
-  window.speak = speak;
+  window.speak = speakTracked;
   window.stopSpeaking = stop;
-  window.listen = (opts) => listen(opts);
+  // Mikrofon-Knopf: bei offenem Mikrofon schaltet er es aus, sonst einmal zuhören.
+  window.listen = (opts) => hf.on ? handsFreeStop() : profile().handsFree !== false && backendReady() && supported() ? handsFreeStart() : listen(opts);
   window.stopListening = () => rec?.cancel();
   ['listenBtn', 'chatListen'].forEach(id => { const b = $(id); if (b) b.onclick = () => listen(); });
-  window.JarvisSpeech = { speak, stop, listen, chunks };
+  window.JarvisSpeech = { capturing: () => Boolean(hf.rec), takeNote: () => { const n = note; note = null; return n; }, voiceMode: () => hf.on, speak: speakTracked, stop, listen, chunks, handsFreeStart, handsFreeStop, handsFree: () => hf.on };
 })();
