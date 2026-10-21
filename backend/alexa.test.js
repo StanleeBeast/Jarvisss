@@ -19,7 +19,7 @@ test("setup gives a secret endpoint; wrong key or skill is rejected", async () =
   const launch = await alexa(env, endpoint, { type: "LaunchRequest" });
   assert.match(launch.body.response.outputSpeech.text, /Hier ist Jarvis/);
   assert.equal(launch.body.response.shouldEndSession, false);
-  assert.equal((await alexa(env, endpoint.replace(/.$/, "0"), { type: "LaunchRequest" })).status, 401);
+  assert.equal((await alexa(env, endpoint.replace(/.$/, c => c === "0" ? "1" : "0"), { type: "LaunchRequest" })).status, 401);
   assert.equal((await alexa(env, endpoint, { type: "LaunchRequest" }, { skill: "amzn1.ask.skill.00000000-0000-0000-0000-000000000000" })).status, 403);
   const old = await worker.fetch(new Request(endpoint, { method: "POST", body: JSON.stringify({ context: { System: { application: { applicationId: SKILL } } }, request: { type: "LaunchRequest", timestamp: "2020-01-01T00:00:00Z" } }) }), env);
   assert.equal(old.status, 400, "replayed old requests are refused");
