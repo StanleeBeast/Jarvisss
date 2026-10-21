@@ -26,7 +26,9 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Eigener Token statt GITHUB_TOKEN: Nur so starten beim PR die Prüfungen (Schutzregeln, Tests),
+          # ohne die der Worker eine Freigabe verweigert.
+          github_token: ${{ secrets.GITHUB_TOKEN_JARVIS }}
           claude_args: --max-turns 40
           prompt: |
             Du bist der Entwickler von J.A.R.V.I.S.S. (PWA in index.html/js/css, Cloudflare Worker in backend/).

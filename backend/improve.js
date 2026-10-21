@@ -10,6 +10,7 @@ export const LABEL = "jarvis-wunsch";
 export const PROTECTED = [/^\.github\//, /^backend\/(auth|http|usage|improve)\.js$/, /^backend\/migrations\/00(0\d|1[0-2])_/, /^backend\/wrangler\.toml$/, /^homestation\/src\/(secret|backend)\.js$/, /^backend\/test-support\//];
 const isProtected = (file) => PROTECTED.some(r => r.test(file));
 const repo = (env) => (env.GITHUB_REPO || "StanleeBeast/Jarvisss").replace(/[^A-Za-z0-9_.\/-]/g, "");
+const REQUIRED_CHECKS = ["protected-files", "test-worker"];
 const monthlyMax = (env) => { const n = Number(env.MAX_IMPROVEMENTS_PER_MONTH); return Number.isFinite(n) && n >= 0 ? n : 3; };
 
 async function gh(env, path, { method = "GET", body } = {}) {
@@ -86,6 +87,8 @@ export async function handleImprovementsApi(request, env, headers, url) {
       const checks = await gh(env, "/commits/" + pr.data.head.sha + "/check-runs");
       const runs = checks.data?.check_runs || [];
       if (runs.some(c => c.status !== "completed")) return json({ error: "checks_running" }, 409, headers);
+      // Ohne die Pflichtprüfungen (Schutzregeln + Worker-Tests) wird nie freigegeben – auch nicht, wenn gar keine liefen.
+      if (REQUIRED_CHECKS.some(name => !runs.some(c => c.name === name))) return json({ error: "checks_missing", required: REQUIRED_CHECKS }, 409, headers);
       if (runs.some(c => !["success", "skipped", "neutral"].includes(c.conclusion))) return json({ error: "checks_failed" }, 409, headers);
       const merged = await gh(env, "/pulls/" + n + "/merge", { method: "PUT", body: { merge_method: "squash", sha: pr.data.head.sha } });
       if (!merged.ok) return json({ error: merged.status === 405 ? "not_mergeable" : "github_unavailable" }, 502, headers);
