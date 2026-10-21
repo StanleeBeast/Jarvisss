@@ -1,0 +1,154 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "mein jarvis",
+      "intents": [
+        {
+          "name": "FrageIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "bitte {frage}",
+            "sag mal {frage}",
+            "ich habe eine frage {frage}",
+            "kannst du {frage}",
+            "jarvis {frage}"
+          ]
+        },
+        {
+          "name": "WasIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "was {frage}"
+          ]
+        },
+        {
+          "name": "WannIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "wann {frage}"
+          ]
+        },
+        {
+          "name": "WieIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "wie {frage}"
+          ]
+        },
+        {
+          "name": "WerIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "wer {frage}"
+          ]
+        },
+        {
+          "name": "WoIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "wo {frage}"
+          ]
+        },
+        {
+          "name": "WarumIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "warum {frage}"
+          ]
+        },
+        {
+          "name": "ErinnereIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "erinnere mich {frage}"
+          ]
+        },
+        {
+          "name": "SchreibIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "schreib {frage}"
+          ]
+        },
+        {
+          "name": "MerkIntent",
+          "slots": [
+            {
+              "name": "frage",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "merk dir {frage}"
+          ]
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NoIntent",
+          "samples": []
+        }
+      ],
+      "types": []
+    }
+  }
+}

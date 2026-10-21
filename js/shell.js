@@ -3,21 +3,33 @@
 (function () {
   'use strict';
   const TAB_KEY = 'jarvis_settings_tab_v1';
+  // Fünf Bereiche statt 13 Tabs. Die einzelnen Ansichten bleiben dieselben (ids tab-*/view-*).
+  const GROUPS = [
+    { id: 'today', label: 'Heute', icon: '◷', tabs: ['day', 'tasks'] },
+    { id: 'comm', label: 'Kommunikation', short: 'Post', icon: '✉', tabs: ['mail', 'messages'] },
+    { id: 'learn', label: 'Lernen', icon: '✎', tabs: ['study'] },
+    { id: 'jarvis', label: 'JARVIS', icon: '◎', tabs: ['autonomy', 'settings', 'memory', 'improve', 'automation', 'assistant', 'planner'] },
+    { id: 'system', label: 'System', icon: '⚙', tabs: ['system', 'devices', 'context', 'design'] }
+  ];
   const TABS = [
-    { id: 'system', label: 'System', view: 'view-system' },
+    { id: 'system', label: 'Status', view: 'view-system' },
     { id: 'day', label: 'Tagesplan', view: 'view-day' },
     { id: 'mail', label: 'Mails', view: 'view-mail' },
     { id: 'tasks', label: 'Aufgaben', view: 'view-tasks' },
     { id: 'study', label: 'Lernen', view: 'view-study' },
-    { id: 'messages', label: 'Nachrichten', view: 'view-messages' },
+    { id: 'messages', label: 'Chats (WhatsApp)', view: 'view-messages' },
+    { id: 'autonomy', label: 'Autonomie', view: 'view-autonomy' },
     { id: 'settings', label: 'Stimme & KI', view: 'view-settings' },
     { id: 'devices', label: 'Geräte', view: 'view-devices' },
+    { id: 'context', label: 'iPhone, iPad & Alexa', view: 'view-context' },
     { id: 'automation', label: 'Automatisierungen', view: 'view-automation' },
     { id: 'memory', label: 'Gedächtnis', view: 'view-memory' },
-    { id: 'planner', label: 'Planung & Entwürfe', view: 'view-planner' },
+    { id: 'improve', label: 'Verbesserungen', view: 'view-improve' },
+    { id: 'planner', label: 'Entwürfe', view: 'view-planner' },
     { id: 'design', label: 'Design', view: 'view-design' },
     { id: 'assistant', label: 'Verlauf', view: 'view-assistant' }
   ];
+  const groupOf = (tabId) => GROUPS.find(g => g.tabs.includes(tabId)) || GROUPS[0];
   const el = (id) => document.getElementById(id);
   const overlay = el('n1SettingsOverlay'), content = el('n1SettingsContent');
   if (!overlay || !content) return;
@@ -28,28 +40,60 @@
   if (waPanel && plannerGrid) plannerGrid.append(waPanel);
 
   const tabBar = document.createElement('nav');
-  tabBar.className = 'n1-panel-tabs';
-  tabBar.setAttribute('role', 'tablist');
+  tabBar.className = 'n1-panel-tabs n1-nav';
   tabBar.setAttribute('aria-label', 'Bereiche');
-  for (const tab of TABS) {
-    const view = el(tab.view);
-    if (!view) continue;
-    view.hidden = false;
-    view.classList.add('n1-settings-view');
-    view.setAttribute('role', 'tabpanel');
-    content.append(view);
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.id = 'tab-' + tab.id;
-    button.textContent = tab.label;
-    button.setAttribute('role', 'tab');
-    button.addEventListener('click', () => activate(tab.id));
-    tabBar.append(button);
+  const groupRow = document.createElement('div');
+  groupRow.className = 'n1-groups';
+  const subRow = document.createElement('div');
+  subRow.className = 'n1-subtabs';
+  subRow.setAttribute('role', 'tablist');
+  for (const g of GROUPS) {
+    const gb = document.createElement('button');
+    gb.type = 'button';
+    gb.className = 'n1-group-btn';
+    gb.dataset.group = g.id;
+    gb.innerHTML = '<span class="n1-group-icon" aria-hidden="true"></span><span class="n1-group-label"></span>';
+    gb.querySelector('.n1-group-icon').textContent = g.icon;
+    gb.querySelector('.n1-group-label').textContent = g.label;
+    gb.querySelector('.n1-group-label').dataset.short = g.short || g.label;
+    gb.addEventListener('click', () => activate(g.tabs[0]));
+    groupRow.append(gb);
+    const head = document.createElement('div');
+    head.className = 'n1-sub-head';
+    head.dataset.group = g.id;
+    head.textContent = g.icon + '  ' + g.label;
+    subRow.append(head);
+    for (const tabId of g.tabs) {
+      const tab = TABS.find(t => t.id === tabId);
+      const view = el(tab.view);
+      if (!view) continue;
+      view.hidden = false;
+      view.classList.add('n1-settings-view');
+      view.setAttribute('role', 'tabpanel');
+      content.append(view);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'tab-' + tab.id;
+      button.className = 'n1-tab';
+      button.dataset.group = g.id;
+      button.textContent = tab.label;
+      button.setAttribute('role', 'tab');
+      button.addEventListener('click', () => activate(tab.id));
+      subRow.append(button);
+    }
   }
-  overlay.querySelector('.n1-settings-head')?.after(tabBar);
+  tabBar.append(groupRow, subRow);
+  // Breite Bildschirme: Seitenleiste neben dem Inhalt; schmale: Bereiche oben, Unterpunkte darunter.
+  const body = document.createElement('div');
+  body.className = 'n1-settings-body';
+  content.before(body);
+  body.append(tabBar, content);
 
   function activate(id) {
     const tab = TABS.find(t => t.id === id) || TABS[0];
+    const group = groupOf(tab.id);
+    tabBar.dataset.group = group.id;
+    groupRow.querySelectorAll('.n1-group-btn').forEach(b => b.setAttribute('aria-current', String(b.dataset.group === group.id)));
     for (const t of TABS) {
       el(t.view)?.classList.toggle('is-active', t.id === tab.id);
       el('tab-' + t.id)?.setAttribute('aria-selected', String(t.id === tab.id));
@@ -68,6 +112,9 @@
     if (tab.id === 'study') window.JarvisStudy?.load();
     if (tab.id === 'messages') window.JarvisMessages?.load();
     if (tab.id === 'mail') window.JarvisMail?.load();
+    if (tab.id === 'autonomy') window.JarvisAutonomy?.load();
+    if (tab.id === 'context') window.JarvisContext?.load();
+    if (tab.id === 'improve') window.JarvisImprove?.load();
     if (tab.id === 'day') window.JarvisPlanner?.load({ prefs: true });
     if (tab.id === 'memory') window.JarvisMemory?.sync();
     if (tab.id === 'assistant') renderChat();
@@ -80,8 +127,8 @@
     document.body.classList.add('n1-settings-open');
     el('n1SettingsClose')?.focus();
   }
-  let initial = 'system';
-  try { initial = localStorage.getItem(TAB_KEY) || 'system'; } catch { /* optional */ }
+  let initial = 'day';
+  try { initial = localStorage.getItem(TAB_KEY) || 'day'; } catch { /* optional */ }
   activate(initial);
 
   window.JarvisShell = { open };

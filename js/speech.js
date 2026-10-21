@@ -215,6 +215,7 @@
     voiceTurn = true;
     clearTimeout(voiceTimer); voiceTimer = setTimeout(() => { voiceTurn = false; }, 90000); // nur die direkte Antwort zählt
     if (profile().reviewVoice && window.n1Prefill) { window.n1Prefill(text); toast('Erkannt. Prüfe den Text und tippe auf Senden.'); voiceTurn = false; return; }
+    if (window.JarvisAgent?.voiceConfirm(text)) return;
     if (window.n1Send) { window.n1Send(text); return; }
     $('quickCommand').value = text;
     const reply = await processCommand(text, true);
@@ -332,6 +333,7 @@
           note = { interruptedWhile: hf.interrupted.slice(0, 400) };
           hf.interrupted = null;
         }
+        if (window.JarvisAgent?.voiceConfirm(text)) { hf.lastTalk = Date.now(); continue; } // „ja“/„nein“ zu einem offenen Vorschlag
         window.n1Send ? await window.n1Send(text) : null;
         hf.lastTalk = Date.now();
       }

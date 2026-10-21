@@ -5,8 +5,8 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#04070d",
-  "theme_color": "#04070d",
+  "background_color": "#070605",
+  "theme_color": "#070605",
   "orientation": "any",
   "icons": [
     {
@@ -20,6 +20,25 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "id": "./",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "shortcuts": [
+    {
+      "name": "Briefing",
+      "url": "./?do=briefing"
+    },
+    {
+      "name": "Tagesplan",
+      "url": "./?open=day"
+    },
+    {
+      "name": "Mails",
+      "url": "./?open=mail"
     }
   ]
 }

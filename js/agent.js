@@ -55,6 +55,10 @@
     } else if (p.type === 'mail_reply') {
       lines.push(['Antwort an', p.target.toName ? p.target.toName + ' <' + p.target.to + '>' : p.target.to]);
       lines.push(['Betreff', /^(re|aw):/i.test(p.target.subject) ? p.target.subject : 'Re: ' + p.target.subject]);
+    } else if (p.type === 'improvement') {
+      lines.push(['JARVIS verbessern', p.payload.title]);
+      lines.push(['Auftrag', p.payload.description]);
+      lines.push(['Danach', 'Eine Code-KI baut die Änderung (einige Minuten, ca. 0,50–2 $ bei Anthropic). Live erst nach deiner Freigabe unter „Verbesserungen“.']);
     } else if (p.type === 'save_memory') {
       lines.push(['Merken als ' + (KIND[p.payload.kind] || 'Erinnerung'), p.payload.text]);
     }
@@ -66,9 +70,12 @@
     if (p.type === 'update_task') return window.JarvisCore.api('/api/tasks/' + encodeURIComponent(p.target.id), { method: 'PATCH', body: p.payload });
     if (p.type === 'save_memory') return window.JarvisCore.api('/api/memories', { method: 'POST', body: p.payload });
     if (p.type === 'plan_change') return window.JarvisCore.api('/api/planner/day/' + encodeURIComponent(p.date) + '/overrides', { method: 'PUT', body: p.payload });
+    if (p.type === 'improvement') return window.JarvisCore.api('/api/improvements', { method: 'POST', body: { ...p.payload, confirm: true } });
     return { ok: false, error: 'unknown_proposal' };
   }
 
+  // Offene Vorschläge, die auch per Stimme bestätigt oder verworfen werden können.
+  const open = [];
   function card(p) {
     const c = document.createElement('div');
     c.className = 'n1-proposal';
@@ -89,6 +96,8 @@
     const status = document.createElement('small');
     actions.append(ok, no, status);
     c.append(actions);
+    const entry = { p, c, ok, no, settled: () => c.dataset.state === 'saved' || c.dataset.state === 'rejected' };
+    open.push(entry);
     if (p.type === 'mail_reply') {
       // Antwortvorschlag: Text bleibt änderbar, gesendet wird erst nach der zweiten, ausdrücklichen Bestätigung.
       const text = document.createElement('textarea');
@@ -97,11 +106,11 @@
       text.setAttribute('aria-label', 'Antworttext');
       c.insertBefore(text, actions);
       ok.textContent = 'Senden …';
-      ok.onclick = () => {
+      ok.onclick = (ev, opts) => {
         if (!window.JarvisMail) return;
         window.JarvisMail.sendReply({ id: p.target.id, subject: p.target.subject, to: p.target.to, toName: p.target.toName }, text.value, status, () => {
           c.dataset.state = 'saved'; text.disabled = true; ok.remove(); no.remove();
-        });
+        }, opts);
       };
       no.onclick = () => { c.dataset.state = 'rejected'; status.textContent = 'Verworfen. Es wurde nichts gesendet.'; ok.remove(); no.remove(); text.disabled = true; };
       return c;
@@ -146,7 +155,35 @@
     return c;
   }
 
+  // Gesprochene Antwort auf offene Vorschläge: „ja/speichern/mach das“ bestätigt, „nein/verwerfen“ verwirft.
+  // Mail-Antworten werden nur mit einem ausdrücklichen „senden“ verschickt. Gibt true zurück, wenn der Satz verbraucht wurde.
+  const YES = /^(ja|jawohl|jo|okay|ok|gerne|genau|passt|mach( das| es)?|speicher[n]?( das)?|bestätig(en|e)?|trag( es| das)? ein|einverstanden|leg( es| sie)? an|stell( ihn| den wecker)?)\b/i;
+  const NO = /^(nein|nee|ne|nicht|lass( es| das)?|verwerf(en|e)?|abbrechen|stopp?|vergiss es)\b/i;
+  const SEND = /\b(senden|abschicken|verschicken|schick( sie| es)? ab)\b/i;
+  function voiceConfirm(text) {
+    const t = String(text || '').trim().replace(/^jarvis[,!.]?\s*/i, '');
+    const pending = open.filter(e => !e.settled() && document.body.contains(e.c));
+    if (!pending.length || t.length > 60) return false;
+    const e = pending[0];
+    if (NO.test(t)) { e.no.onclick?.(); window.speak?.('Alles klar, verworfen. Es wurde nichts geändert.'); return true; }
+    if (e.p.type === 'mail_reply') {
+      if (!SEND.test(t)) { if (YES.test(t)) { window.speak?.('Soll ich die Antwort an ' + (e.p.target.toName || e.p.target.to) + ' wirklich senden? Sag dann: Ja, senden.'); return true; } return false; }
+      e.ok.onclick?.(null, { spokenConfirm: true });
+      window.speak?.('Okay, ich übergebe die Antwort an die Home-Station. Ich sage dir Bescheid, wenn sie raus ist.');
+      return true;
+    }
+    if (!YES.test(t)) return false;
+    if (e.p.type === 'alarm') { e.ok.onclick?.(); window.speak?.('Ich starte den Kurzbefehl. Prüf bitte in der Uhr-App, ob der Wecker steht.'); return true; }
+    // Erst sprechen, wenn die Datenbank das Speichern bestätigt hat.
+    Promise.resolve(e.ok.onclick?.()).then(() => {
+      const saved = e.c.dataset.state === 'saved';
+      const more = open.filter(x => !x.settled() && document.body.contains(x.c)).length;
+      window.speak?.(saved ? 'Gespeichert.' + (more ? ' Es gibt noch einen Vorschlag – ja oder nein?' : '') : 'Das hat nicht geklappt: ' + (e.c.querySelector('small')?.textContent || 'unbekannter Fehler'));
+    });
+    return true;
+  }
   function show(proposals) {
+    open.length = 0;
     box.replaceChildren(...proposals.slice(0, 5).map(card));
     if (proposals.length) box.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
   }
@@ -164,7 +201,7 @@
 
   const CATEGORY = { A: 'A · Lesen', B: 'B · Vorschlagen' };
   const TOOL_TEXT = {
-    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', get_calendar_events: 'Kalender lesen (Abo-Link, nur lesen)', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen', list_mails: 'Mails lesen (über die Home-Station)', web_search: 'Im Internet suchen (mit Quellen)', remember: 'Sich Wichtiges merken (sichtbar und löschbar im Gedächtnis)', propose_mail_reply: 'Mail-Antwort vorschlagen (Senden nur nach Bestätigung)',
+    get_current_time: 'Uhrzeit', get_weather: 'Wetter (Open-Meteo)', get_news: 'Nachrichten (Google News)', list_tasks: 'Aufgaben lesen', get_day_plan: 'Tagesplan lesen', get_calendar_events: 'Kalender lesen (Abo-Link, nur lesen)', propose_plan_change: 'Tagesplan-Änderung vorschlagen', list_study_sets: 'Lernsets lesen', list_message_insights: 'Chat-Auswertungen lesen', list_mails: 'Mails lesen (über die Home-Station)', web_search: 'Im Internet suchen (mit Quellen)', remember: 'Sich Wichtiges merken (sichtbar und löschbar im Gedächtnis)', propose_mail_reply: 'Mail-Antwort vorschlagen (Senden nur nach Bestätigung)', propose_improvement: 'Verbesserung an sich selbst vorschlagen (Bau nach Bestätigung, live nach Freigabe)', get_briefing: 'Briefing in einem Schritt',
     propose_task: 'Aufgabe vorschlagen', propose_task_update: 'Aufgabenänderung vorschlagen', propose_memory: 'Erinnerung vorschlagen', propose_alarm: 'Wecker über Kurzbefehl vorschlagen', draft_task: 'Text-Entwurf (ohne Datenbank)'
   };
   function meter(label, used, max) {
@@ -216,5 +253,7 @@
   }
   el('sysRecheck')?.addEventListener('click', loadInsights);
 
-  window.JarvisAgent = { show, loadInsights };
+  // Vorschläge außerhalb der Antwortkarte anzeigen (z. B. aus der Tagesvorbereitung der Autonomie).
+  function renderProposals(container, proposals) { container.replaceChildren(...proposals.slice(0, 5).map(card)); }
+  window.JarvisAgent = { show, loadInsights, voiceConfirm, renderProposals };
 })();

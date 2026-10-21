@@ -11,7 +11,11 @@ import { authenticate, handleAuthApi, authStatus } from "./auth.js";
 import { handleMemoriesApi } from "./memories.js";
 import { handleTasksApi } from "./tasks.js";
 import { getNews } from "./news.js";
-import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL } from "./agent.js";
+import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL, runAgent } from "./agent.js";
+import { handleAutonomyApi, runAutonomy } from "./autonomy.js";
+import { handleContextApi } from "./context.js";
+import { handleImprovementsApi, improvementStatus } from "./improve.js";
+import { handleAlexaApi } from "./alexa.js";
 import { checkBudget, addUsage, handleUsageApi, getUsage, limits, budgetState, EXTRA_COST } from "./usage.js";
 import { handlePushApi } from "./push.js";
 import { handleAutomationApi, runScheduler, schedulerStatus } from "./scheduler.js";
@@ -126,6 +130,7 @@ async function systemStatus(env, principal) {
         ? { state: "available", detail: "Aufgaben und Gedächtnis: geräteübergreifend. Profil, Stimme und Design: weiterhin nur lokal.", verified: true }
         : { state: "not_available", detail: "Profil, Gedächtnis und Design liegen nur lokal im Browser." },
       mail: await stationStatus(env),
+      improvements: improvementStatus(env),
       messaging: { state: "manual_only", detail: "Kein Zugriff auf WhatsApp. Ausgewählte Chats importierst du selbst (Chat exportieren oder einfügen); Antworten sind Entwürfe, die du selbst sendest. E-Mail: siehe Home-Station." }
     }
   };
@@ -254,8 +259,15 @@ async function handleStt(request, env, headers) {
     return json({ error: isTimeout(error) ? "model_timeout" : "model_unreachable" }, 502, headers);
   }
 }
+// KI-Tagesvorbereitung für die Autonomie (morgens, einmal am Tag). Vorschläge werden nur gespeichert, nicht ausgeführt.
+export const DAY_PREP_PROMPT = "Bereite meinen Tag vor. Nutze get_briefing und get_day_plan. Antworte als gesprochenes Morgenbriefing in höchstens 120 Wörtern: Begrüßung, Wetter, was heute ansteht, wichtige Mails, eine Schlagzeile aus der Region. Wenn sinnvoll, schlage höchstens 3 Dinge vor (z. B. eine Aufgabe mit Uhrzeit oder eine Planänderung) – nur als Vorschlag.";
+async function prepareDay(env, timezone) {
+  const result = await runAgent({ messages: [{ role: "user", content: DAY_PREP_PROMPT }], timezone, profile: { autoMemory: false }, voice: true }, env);
+  return result.error ? { error: result.error } : { reply: result.reply, proposals: result.proposals || [] };
+}
+export { prepareDay };
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
     const headers = corsHeaders(origin, env);
     if (origin && !allowedOrigins(env).includes(origin)) return json({ error: "origin_not_allowed" }, 403, headers);
@@ -294,6 +306,14 @@ export default {
     if (plannerResponse) return plannerResponse;
     const mailResponse = await handleMailApi(request, env, headers, url);
     if (mailResponse) return mailResponse;
+    const alexaResponse = await handleAlexaApi(request, env, headers, url, ctx, runAgent);
+    if (alexaResponse) return alexaResponse;
+    const improveResponse = await handleImprovementsApi(request, env, headers, url);
+    if (improveResponse) return improveResponse;
+    const contextResponse = await handleContextApi(request, env, headers, url);
+    if (contextResponse) return contextResponse;
+    const autonomyResponse = await handleAutonomyApi(request, env, headers, url);
+    if (autonomyResponse) return autonomyResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
       const auth = await authenticate(request, env, headers);
       if (auth.response) return auth.response;
@@ -313,6 +333,6 @@ export default {
 
   // Cloudflare Cron (wrangler.toml → [triggers]): Erinnerungen, Morgenbriefing, geplante Benachrichtigungen.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(runScheduler(env).catch(() => null));
+    ctx.waitUntil(runScheduler(env).catch(() => null).then(() => runAutonomy(env, { prepareDay }).catch(() => null)));
   }
 };

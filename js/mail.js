@@ -144,11 +144,13 @@
   }
 
   // Gemeinsamer Versandweg für den Editor und für Vorschläge des Agenten.
-  function sendReply(m, text, stateEl, onQueued) {
+  function sendReply(m, text, stateEl, onQueued, { spokenConfirm = false } = {}) {
     const body = String(text || '').trim();
     if (!body) { toast('Bitte einen Antworttext eingeben.'); return; }
     const to = m.toName ? m.toName + ' <' + m.to + '>' : m.to || (m.fromName ? m.fromName + ' <' + m.fromAddr + '>' : m.fromAddr);
-    confirmAction('Antwort wirklich senden?', 'An: ' + to + '\nBetreff: ' + (/^(re|aw):/i.test(m.subject) ? m.subject : 'Re: ' + m.subject) + '\n\n„' + body.slice(0, 240) + (body.length > 240 ? ' …' : '') + '“\n\nDie Home-Station sendet von deinem Postfach. Gesendet ist gesendet.', async () => {
+    // Gesprochenes „Ja, senden“ ersetzt den Tipp im Dialog – es ist die ausdrückliche Bestätigung.
+    const ask = spokenConfirm ? (_t, _b, fn) => fn() : confirmAction;
+    ask('Antwort wirklich senden?', 'An: ' + to + '\nBetreff: ' + (/^(re|aw):/i.test(m.subject) ? m.subject : 'Re: ' + m.subject) + '\n\n„' + body.slice(0, 240) + (body.length > 240 ? ' …' : '') + '“\n\nDie Home-Station sendet von deinem Postfach. Gesendet ist gesendet.', async () => {
       stateEl.textContent = 'Wird an die Home-Station übergeben …';
       const res = await api('/api/mail/' + encodeURIComponent(m.id) + '/reply', { method: 'POST', body: { text: body, confirm: true } });
       if (!res.ok || !res.body?.queued) { stateEl.textContent = 'Nicht gesendet: ' + errorText(res.error || res.body?.error); stateEl.classList.add('is-error'); return; }

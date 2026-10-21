@@ -535,7 +535,7 @@ body.no-motion #nexusCanvas{display:none}
 .day-picker .day input:focus-visible+span{outline:2px solid var(--purple)}
 #autoPushState[data-tone="ok"] small{color:#70ffd5}#autoPushState[data-tone="warn"] small{color:#ffc35a}
 #nexusOne .n1-speak{margin-top:12px;min-height:40px!important}
-#view-study [hidden],#view-automation [hidden],#view-devices [hidden],#view-messages [hidden],#view-mail [hidden]{display:none!important}
+#view-study [hidden],#view-automation [hidden],#view-devices [hidden],#view-messages [hidden],#view-mail [hidden],#view-autonomy [hidden],#view-context [hidden],#view-improve [hidden]{display:none!important}
 .msg-draft{margin:8px 0;padding:10px 12px;border-left:2px solid var(--purple);background:rgba(25,21,17,.6);border-radius:8px;white-space:pre-wrap;line-height:1.5}
 #msgPreviewBox small{display:block;margin:3px 0}
 .study-md h3,.study-h{font-size:13px;letter-spacing:.06em;color:var(--lav);margin:16px 0 6px}
@@ -895,7 +895,7 @@ $('saveAiEndpoint').onclick=()=>saveAIEndpoint('design');$('saveAiEndpointSettin
   <section class="n1-core-stage" aria-label="Animierter JARVIS-Kern"><div class="n1-core"><div class="n1-core-inner"></div><div class="n1-orbit"></div><div class="n1-orbit o2"></div><div class="n1-orbit o3"></div><div class="n1-scan"></div></div><div class="n1-core-label"><span>JARVIS</span> · <b id="n1CoreState">NEURAL CORE</b></div></section>
   <section class="n1-news"><div class="n1-news-head"><div><div class="n1-news-title">Was gerade wichtig ist</div><div class="n1-news-sub">Miltitz & Umgebung · Sachsen · Deutschland · Welt</div></div><button class="n1-refresh" id="n1Refresh" aria-label="Nachrichten aktualisieren" title="Aktualisieren">↻</button></div><div class="n1-news-body" id="n1NewsSlot"></div></section>
  </div>
- <footer class="n1-bottom"><span>J.A.R.V.I.S. · PERSONAL SYSTEM</span><span id="n1FooterState">READY TO ASSIST</span></footer><div class="n1-toast" id="n1Toast"></div><div class="n1-settings-overlay" id="n1SettingsOverlay" aria-hidden="true"><section class="n1-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="n1SettingsTitle"><header class="n1-settings-head"><div><div class="n1-settings-kicker">PERSONAL SYSTEM CONTROL</div><h2 id="n1SettingsTitle">Einstellungen</h2><p>Alle Bereiche von JARVIS an einem Ort: Status, Aufgaben, Lernen, Nachrichten, Stimme, Geräte, Automatisierungen, Gedächtnis und Design.</p></div><button id="n1SettingsClose" class="n1-settings-close" type="button" aria-label="Einstellungen schließen">×</button></header><div class="n1-settings-content" id="n1SettingsContent"></div></section></div>`;
+ <footer class="n1-bottom"><span>J.A.R.V.I.S. · PERSONAL SYSTEM</span><span id="n1FooterState">READY TO ASSIST</span></footer><div class="n1-toast" id="n1Toast"></div><div class="n1-settings-overlay" id="n1SettingsOverlay" aria-hidden="true"><section class="n1-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="n1SettingsTitle"><header class="n1-settings-head"><div><div class="n1-settings-kicker">PERSONAL SYSTEM CONTROL</div><h2 id="n1SettingsTitle">Kontrollzentrum</h2><p>Dein Tag, Kommunikation, Lernen, JARVIS selbst und das System.</p></div><button id="n1SettingsClose" class="n1-settings-close" type="button" aria-label="Einstellungen schließen">×</button></header><div class="n1-settings-content" id="n1SettingsContent"></div></section></div>`;
  document.body.appendChild(app);
  const settingsView=document.getElementById('view-settings'),settingsOverlay=document.getElementById('n1SettingsOverlay'),settingsContent=document.getElementById('n1SettingsContent');
  if(settingsView&&settingsContent){settingsContent.appendChild(settingsView);settingsView.hidden=false;settingsView.classList.add('n1-settings-view')}
@@ -935,7 +935,11 @@ if('serviceWorker'in navigator && location.protocol.startsWith('http')){const ha
 <script src="js/messages.js"></script>
 <script src="js/planner.js"></script>
 <script src="js/mail.js"></script>
+<script src="js/autonomy.js"></script>
+<script src="js/context.js"></script>
+<script src="js/improve.js"></script>
 <script src="js/voice.js"></script>
 <script src="js/speech.js"></script>
 <script src="js/shell.js"></script>
+<script src="js/desktop.js"></script>
 </body></html>

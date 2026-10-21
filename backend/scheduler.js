@@ -78,11 +78,14 @@ async function weatherSummary(env, tz) {
     return { location: clip(env.WEATHER_NAME, 80) || "Miltitz bei Nebelschütz", nowC: d.current?.temperature_2m, condition: WEATHER[d.current?.weather_code] || "unbekannt", minC: d.daily?.temperature_2m_min?.[0], maxC: d.daily?.temperature_2m_max?.[0], rainPercent: d.daily?.precipitation_probability_max?.[0], source: "Open-Meteo" };
   } catch { return { error: "weather_source_unavailable" }; }
 }
-export async function buildBriefing(env, { include = { weather: true, tasks: true, news: true }, timezone = DEFAULT_TZ, now = Date.now() } = {}) {
+export async function buildBriefing(env, { include = { weather: true, tasks: true, news: true }, timezone = DEFAULT_TZ, now = Date.now(), store = true } = {}) {
   const tz = safeTz(timezone);
   const today = localParts(now, tz).day;
   const content = { createdAt: new Date(now).toISOString(), timezone: tz, day: today };
-  if (include.weather) content.weather = await weatherSummary(env, tz);
+  // Netzabrufe (Wetter, Nachrichten) laufen parallel, während die Datenbank gelesen wird.
+  const weatherP = include.weather ? weatherSummary(env, tz) : null;
+  const newsP = include.news ? Promise.allSettled(["local", "saxony", "germany", "world"].map(section => getNews(section).then(res => ({ section, res })))) : null;
+  if (weatherP) content.weather = await weatherP;
   if (include.tasks && env.DB) {
     try {
       const open = await listTasks(env.DB, "open", 100);
@@ -106,17 +109,17 @@ export async function buildBriefing(env, { include = { weather: true, tasks: tru
       if (mails.length) content.mail = { important: mails.map(m => ({ from: m.fromName || m.fromAddr, subject: m.subject, summary: m.summary, importance: m.importance })) };
     } catch { /* Mail-Tabellen fehlen (Migration 0009) – Briefing ohne Mails */ }
   }
-  if (include.news) {
+  if (newsP) {
     content.news = [];
-    for (const section of ["local", "saxony", "germany", "world"]) {
-      try {
-        const res = await getNews(section);
-        for (const item of (res.items || []).slice(0, 2)) content.news.push({ section, title: item.title, source: item.source, published: item.published, link: item.link });
-        if (!res.items?.length) content.news.push({ section, error: "news_source_unavailable" });
-      } catch { content.news.push({ section, error: "news_source_unavailable" }); }
+    const sections = ["local", "saxony", "germany", "world"];
+    for (const [i, r] of (await newsP).entries()) {
+      const res = r.status === "fulfilled" ? r.value.res : null;
+      for (const item of (res?.items || []).slice(0, 2)) content.news.push({ section: sections[i], title: item.title, source: item.source, published: item.published, link: item.link });
+      if (!res?.items?.length) content.news.push({ section: sections[i], error: "news_source_unavailable" });
     }
   }
   const id = crypto.randomUUID();
+  if (!store) return { id: null, content };
   if (env.DB) await env.DB.prepare("INSERT INTO briefings (id, created_at, content) VALUES (?, ?, ?)").bind(id, content.createdAt, JSON.stringify(content)).run();
   await env.DB?.prepare("DELETE FROM briefings WHERE created_at < ?").bind(new Date(now - 30 * 86400000).toISOString()).run();
   return { id, content };
