@@ -13,9 +13,8 @@
     + '<div id="impList" class="auto-feed"></div>'
     + '<details class="panel" id="impSetup"><summary>Einrichten (einmalig)</summary><ol class="ctx-steps">'
     + '<li><b>Anthropic-Schlüssel:</b> console.anthropic.com → API Keys → „Create Key“. Unter <b>Limits</b> ein Monatslimit setzen (z. B. 5 $). Kosten: ca. 0,50–2 $ pro Änderung.</li>'
-    + '<li><b>GitHub-Token:</b> github.com → Settings → Developer settings → <b>Fine-grained tokens</b> → „Generate new token“. Repository: nur <b>Jarvisss</b>. Rechte: <b>Issues</b>, <b>Pull requests</b>, <b>Contents</b>, <b>Actions</b> jeweils „Read and write“, <b>Checks</b> „Read“.</li>'
+    + '<li><b>GitHub-Token:</b> github.com → Settings → Developer settings → <b>Fine-grained tokens</b> → „Generate new token“. Repository: nur <b>Jarvisss</b>. Rechte: <b>Issues</b>, <b>Pull requests</b>, <b>Contents</b>, <b>Actions</b> jeweils „Read and write“. Ablaufdatum z. B. 1 Jahr.</li>'
     + '<li>Im Repository → Settings → Secrets and variables → Actions zwei Secrets anlegen: <code>ANTHROPIC_API_KEY</code> und <code>GITHUB_TOKEN_JARVIS</code>. Schlüssel nie in den Chat schreiben.</li>'
-    + '<li>Im Repository → Settings → Actions → General: „Allow GitHub Actions to create and approve pull requests“ einschalten.</li>'
     + '<li>Deploy-Workflow einmal neu starten (oder mir „Weiter“ sagen). Danach steht hier „eingerichtet“.</li></ol></details>';
   document.querySelector('main')?.append(section);
 
@@ -39,7 +38,7 @@
       ok.onclick = () => confirmAction('Änderung freigeben?', '„' + x.title.replace(/^JARVIS-Wunsch:\s*/, '') + '“ wird übernommen und geht live. Geprüft wird vorher automatisch: Tests grün, keine geschützten Dateien.', async () => {
         st.textContent = 'Wird geprüft und übernommen …';
         const res = await api('/api/improvements/' + x.pr.number + '/merge', { method: 'POST', body: { confirm: true } });
-        const MSG = { protected_files_changed: 'Abgelehnt: Die Änderung betrifft geschützte Bereiche (' + (res.body?.files || []).join(', ') + ').', checks_failed: 'Noch nicht: Die automatischen Tests sind rot.', checks_running: 'Die Tests laufen noch – in ein paar Minuten erneut versuchen.', not_mergeable: 'Kann nicht übernommen werden (Konflikt).' };
+        const MSG = { protected_files_changed: 'Abgelehnt: Die Änderung betrifft geschützte Bereiche (' + (res.body?.files || []).join(', ') + ').', checks_failed: 'Noch nicht: Die automatischen Tests sind rot.', checks_running: 'Die Tests laufen noch – in ein paar Minuten erneut versuchen.', checks_missing: 'Noch nicht: Die Pflichtprüfungen (Schutzregeln und Tests) sind noch nicht gelaufen.', not_mergeable: 'Kann nicht übernommen werden (Konflikt).' };
         st.textContent = res.ok && res.body?.merged ? '✓ Übernommen. Website aktualisiert sich in 1–3 Minuten' + (res.body.workerDeployStarted ? ', Backend wird neu ausgerollt.' : '.') : (MSG[res.body?.error] || 'Fehler: ' + window.JarvisCore.errorText(res.error || res.body?.error));
         if (res.ok) setTimeout(load, 2500);
       });

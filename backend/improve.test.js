@@ -6,7 +6,7 @@ import { createD1 } from "./test-support/d1.js";
 const origin = "https://stanleebeast.github.io";
 const makeEnv = (extra = {}) => ({ OPENAI_API_KEY: "k", JARVIS_ACCESS_TOKEN: "t", ALLOWED_ORIGINS: origin, OPENAI_MODEL: "gpt-4.1-mini", DB: createD1(), GITHUB_TOKEN_JARVIS: "ghp_test", ...extra });
 const call = (env, path, method = "GET", body) => worker.fetch(new Request("https://w.test" + path, { method, headers: { Origin: origin, Authorization: "Bearer t", "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined }), env).then(async r => ({ status: r.status, body: await r.json() }));
-function fakeGitHub({ files = ["css/stark.css"], checks = [{ status: "completed", conclusion: "success" }], issuesThisMonth = 0 } = {}) {
+function fakeGitHub({ files = ["css/stark.css"], checks = [{ name: "protected-files", status: "completed", conclusion: "success" }, { name: "test-worker", status: "completed", conclusion: "success" }], issuesThisMonth = 0 } = {}) {
   const seen = [];
   const month = new Date().toISOString().slice(0, 7);
   const handler = async (url, o = {}) => {
@@ -55,7 +55,9 @@ test("release merges only clean, green PRs and redeploys the worker for backend 
   assert.equal(blocked.body.error, "protected_files_changed");
   assert.deepEqual(blocked.body.files, ["backend/auth.js"]);
   assert.equal(prot.seen.some(s => s.includes("/merge")), false);
-  const red = await withFetch(fakeGitHub({ checks: [{ status: "completed", conclusion: "failure" }] }).handler, () => call(env, "/api/improvements/7/merge", "POST", { confirm: true }));
+  const none = await withFetch(fakeGitHub({ checks: [] }).handler, () => call(env, "/api/improvements/7/merge", "POST", { confirm: true }));
+  assert.equal(none.body.error, "checks_missing", "no checks ran → never released");
+  const red = await withFetch(fakeGitHub({ checks: [{ name: "protected-files", status: "completed", conclusion: "success" }, { name: "test-worker", status: "completed", conclusion: "failure" }] }).handler, () => call(env, "/api/improvements/7/merge", "POST", { confirm: true }));
   assert.equal(red.body.error, "checks_failed");
   const ok = fakeGitHub({ files: ["js/planner.js", "backend/planner.js"] });
   const merged = await withFetch(ok.handler, () => call(env, "/api/improvements/7/merge", "POST", { confirm: true }));
