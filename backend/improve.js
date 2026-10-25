@@ -28,7 +28,7 @@ const linkedIssue = (pr) => Number(((pr.body || "") + " " + (pr.title || "") + "
 export function improvementStatus(env) {
   return env.GITHUB_TOKEN_JARVIS
     ? { state: "configured", detail: "Selbstverbesserung über GitHub eingerichtet (höchstens " + monthlyMax(env) + " pro Monat). Ob Claude Code läuft, zeigt der erste Wunsch.", verified: false }
-    : { state: "not_configured", detail: "Selbstverbesserung aus: GitHub-Secret GITHUB_TOKEN_JARVIS (und ANTHROPIC_API_KEY für die GitHub Action) fehlt." };
+    : { state: "not_configured", detail: "Selbstverbesserung aus: GitHub-Secret JARVIS_GITHUB_TOKEN (und ANTHROPIC_API_KEY für die GitHub Action) fehlt." };
 }
 
 export async function handleImprovementsApi(request, env, headers, url) {
@@ -36,7 +36,7 @@ export async function handleImprovementsApi(request, env, headers, url) {
   const auth = await authenticate(request, env, headers);
   if (auth.response) return auth.response;
   const actor = actorOf(auth.principal);
-  if (!env.GITHUB_TOKEN_JARVIS) return json({ error: "improvements_not_configured", message: "Für Selbstverbesserung fehlen die GitHub-Secrets GITHUB_TOKEN_JARVIS und ANTHROPIC_API_KEY." }, 503, headers);
+  if (!env.GITHUB_TOKEN_JARVIS) return json({ error: "improvements_not_configured", message: "Für Selbstverbesserung fehlen die GitHub-Secrets JARVIS_GITHUB_TOKEN und ANTHROPIC_API_KEY." }, 503, headers);
   try {
     if (url.pathname === "/api/improvements" && request.method === "GET") {
       const [issues, pulls] = await Promise.all([gh(env, "/issues?labels=" + LABEL + "&state=all&per_page=20"), gh(env, "/pulls?state=all&per_page=40&sort=created&direction=desc")]);

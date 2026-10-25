@@ -14,7 +14,7 @@
     + '<details class="panel" id="impSetup"><summary>Einrichten (einmalig)</summary><ol class="ctx-steps">'
     + '<li><b>Anthropic-Schlüssel:</b> console.anthropic.com → API Keys → „Create Key“. Unter <b>Limits</b> ein Monatslimit setzen (z. B. 5 $). Kosten: ca. 0,50–2 $ pro Änderung.</li>'
     + '<li><b>GitHub-Token:</b> github.com → Settings → Developer settings → <b>Fine-grained tokens</b> → „Generate new token“. Repository: nur <b>Jarvisss</b>. Rechte: <b>Issues</b>, <b>Pull requests</b>, <b>Contents</b>, <b>Actions</b> jeweils „Read and write“. Ablaufdatum z. B. 1 Jahr.</li>'
-    + '<li>Im Repository → Settings → Secrets and variables → Actions zwei Secrets anlegen: <code>ANTHROPIC_API_KEY</code> und <code>GITHUB_TOKEN_JARVIS</code>. Schlüssel nie in den Chat schreiben.</li>'
+    + '<li>Im Repository → Settings → Secrets and variables → Actions zwei Secrets anlegen: <code>ANTHROPIC_API_KEY</code> und <code>JARVIS_GITHUB_TOKEN</code>. Schlüssel nie in den Chat schreiben.</li>'
     + '<li>Deploy-Workflow einmal neu starten (oder mir „Weiter“ sagen). Danach steht hier „eingerichtet“.</li></ol></details>';
   document.querySelector('main')?.append(section);
 

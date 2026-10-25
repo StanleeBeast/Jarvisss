@@ -48,7 +48,7 @@ jobs:
           JARVIS_ACCESS_TOKEN: ${{ secrets.JARVIS_ACCESS_TOKEN }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ vars.ELEVENLABS_VOICE_ID }}
-          GITHUB_TOKEN_JARVIS: ${{ secrets.GITHUB_TOKEN_JARVIS }}
+          GITHUB_TOKEN_JARVIS: ${{ secrets.JARVIS_GITHUB_TOKEN }}
         run: |
           set -eu
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing GitHub secret CLOUDFLARE_API_TOKEN"; exit 1)
