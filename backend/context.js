@@ -49,6 +49,9 @@ export async function handleContextApi(request, env, headers, url) {
   try {
     // Eingang vom Kurzbefehl: nur mit dem Kurzbefehl-Schlüssel (oder einer normalen Sitzung).
     if (url.pathname === "/api/context" && request.method === "POST") {
+      // Zuerst den Text lesen: Antwortet der Worker (z. B. 401), bevor der Text angenommen ist,
+      // meldet iOS-Kurzbefehle nur „Netzwerkverbindung unterbrochen“ statt des echten Fehlers.
+      const body = await readJsonBody(request, 4000);
       const token = bearer(request);
       const stored = await env.DB.prepare("SELECT value FROM user_settings WHERE key = ?").bind(KEY_SETTING).first();
       let actor = null;
@@ -58,7 +61,6 @@ export async function handleContextApi(request, env, headers, url) {
         if (auth.response) return auth.response;
         actor = actorOf(auth.principal);
       }
-      const body = await readJsonBody(request, 4000);
       if (body.error) return json({ error: body.error }, body.status, headers);
       const list = Array.isArray(body.value.items) ? body.value.items : [{ type: body.value.type, value: body.value.value }];
       const device = clip(String(body.value.device || ""), 40);
