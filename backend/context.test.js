@@ -37,3 +37,12 @@ test("the agent sees the fresh device context as data", async () => {
   assert.match(sys, /Fokus: Schlafen an \(gerade eben\)/);
   assert.match(sys, /Ort: zuhause/);
 });
+
+test("a wrong shortcut key gets a readable 401 after the body was read", async () => {
+  const env = makeEnv();
+  await call(env, "/api/context/key", { method: "POST" });
+  const req = new Request("https://w.test/api/context", { method: "POST", headers: { Authorization: "Bearer jvc_falsch", "Content-Type": "application/json" }, body: JSON.stringify({ type: "focus", value: "Nicht stören an" }) });
+  const res = await worker.fetch(req, env);
+  assert.equal(res.status, 401);
+  assert.equal(req.bodyUsed, true, "iOS shows 'connection lost' if the body is left unread");
+});
