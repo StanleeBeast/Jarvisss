@@ -63,3 +63,30 @@ test("settings are validated and saved; autonomy can be switched off", async () 
   const anon = await worker.fetch(new Request("https://w.test/api/autonomy", { headers: { Origin: origin } }), env);
   assert.equal(anon.status, 401);
 });
+
+test("while 'Nicht stören' is on, non-urgent pushes are held and released together afterwards", async () => {
+  const env = makeEnv();
+  const focus = (value, iso) => env.DB.raw.prepare("INSERT INTO context_state (type, value, device, updated_at) VALUES ('focus', ?, '', ?) ON CONFLICT(type) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at").run(JSON.stringify(value), iso);
+  task(env, "Mathe abgeben", "2026-10-19T08:00:00Z");
+  focus("Nicht stören an", "2026-10-19T14:00:00Z");
+  const r1 = await runAutonomy(env, { nowMs: AT("2026-10-19T14:40:00Z") });
+  assert.equal(r1.focus, "Nicht stören");
+  assert.equal(r1.overdue, 1, "still logged");
+  assert.equal(env.DB.raw.prepare("SELECT pushed FROM autonomy_log WHERE kind = 'overdue'").get().pushed, -1, "push held back");
+  assert.equal((await runAutonomy(env, { nowMs: AT("2026-10-19T14:45:00Z") })).released, undefined, "nothing released while focus is on");
+  focus("Nicht stören aus", "2026-10-19T15:00:00Z");
+  const r3 = await runAutonomy(env, { nowMs: AT("2026-10-19T15:05:00Z") });
+  assert.equal(r3.focus, null);
+  assert.equal(r3.released, 1);
+  assert.notEqual(env.DB.raw.prepare("SELECT pushed FROM autonomy_log WHERE kind = 'overdue'").get().pushed, -1);
+  assert.equal((await runAutonomy(env, { nowMs: AT("2026-10-19T15:10:00Z") })).released, undefined, "released only once");
+});
+
+test("a stale focus (older than 12 hours) or a switched-off hold does not block pushes", async () => {
+  const env = makeEnv();
+  env.DB.raw.prepare("INSERT INTO context_state (type, value, device, updated_at) VALUES ('focus', ?, '', ?)").run(JSON.stringify("Nicht stören an"), "2026-10-18T20:00:00Z");
+  assert.equal((await runAutonomy(env, { nowMs: AT("2026-10-19T14:40:00Z") })).focus, null);
+  env.DB.raw.prepare("UPDATE context_state SET updated_at = ?").run("2026-10-19T14:00:00Z");
+  await call(env, "/api/autonomy/settings", "PUT", { focusHold: { enabled: false } });
+  assert.equal((await runAutonomy(env, { nowMs: AT("2026-10-19T14:40:00Z") })).focus, null);
+});
