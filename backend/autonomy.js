@@ -17,6 +17,7 @@ export const AUTONOMY_DEFAULTS = {
   mailWatch: { enabled: true, hours: 3 },
   eveningPreview: { enabled: true, time: "20:00" },
   dayPrep: { enabled: true, time: "06:30", days: [1, 2, 3, 4, 5, 6, 7] },
+  focusHold: { enabled: true },
   quiet: { from: "22:00", to: "06:30" }
 };
 const hhmm = (v) => /^([01]\d|2[0-3]):[0-5]\d$/.test(v || "");
@@ -52,12 +53,23 @@ function inQuiet(cfg, minutes) {
   return a > b ? minutes >= a || minutes < b : minutes >= a && minutes < b;
 }
 
+// „Nicht stören an“ (vom iPhone-Kurzbefehl): Name des aktiven Fokus oder null. Älter als 12 Std. zählt nicht.
+const FOCUS_ON = /\s*\b(an|ein|aktiv|aktiviert|on)\s*$/i;
+export async function activeFocus(env, nowMs = Date.now()) {
+  const row = await env.DB.prepare("SELECT value, updated_at FROM context_state WHERE type = 'focus'").first().catch(() => null);
+  if (!row || !(nowMs - Date.parse(row.updated_at) < 12 * 3600000)) return null;
+  let v; try { v = String(JSON.parse(row.value)); } catch { return null; }
+  return FOCUS_ON.test(v) ? v.replace(FOCUS_ON, "").trim() || "Fokus" : null;
+}
+
 // Eintrag anlegen – genau einmal pro (kind, ref). Liefert die id oder null, wenn es ihn schon gibt.
-async function record(env, { kind, ref, title, detail = "", proposals = [], push = null, nowMs }) {
+// hold = aktiver Fokus: Nicht dringende Pushs werden zurückgehalten (pushed = -1) und später gesammelt geschickt.
+async function record(env, { kind, ref, title, detail = "", proposals = [], push = null, nowMs, hold = null }) {
   const id = crypto.randomUUID();
   const r = await env.DB.prepare("INSERT OR IGNORE INTO autonomy_log (id, at, kind, ref, title, detail, proposals) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .bind(id, new Date(nowMs).toISOString(), kind, clip(ref, 200), clip(title, 160), clip(detail, 4000), JSON.stringify(proposals).slice(0, 20000)).run();
   if (!r?.meta?.changes) return null;
+  if (push && hold && !push.urgent) { await env.DB.prepare("UPDATE autonomy_log SET pushed = -1 WHERE id = ?").bind(id).run(); return id; }
   if (push) {
     const res = await notifyAll(env, { title: push.title, body: push.body, url: "./?autonomy=" + id, tag: "jarvis-auto-" + kind }, { urgency: push.urgent ? "high" : "normal" }).catch(() => ({ sent: 0 }));
     if (res.sent) await env.DB.prepare("UPDATE autonomy_log SET pushed = 1 WHERE id = ?").bind(id).run();
@@ -73,6 +85,19 @@ export async function runAutonomy(env, { nowMs = Date.now(), timezone = DEFAULT_
   try { cfg = await getAutonomy(env.DB); } catch { return report; }
   const tz = timezone, l = local(nowMs, tz), quiet = inQuiet(cfg, l.minutes);
   const safe = async (fn) => { try { await fn(); } catch { /* ein Fehler darf die anderen nicht stoppen */ } };
+  const hold = cfg.focusHold.enabled ? await activeFocus(env, nowMs) : null;
+  report.focus = hold;
+
+  // 0) Fokus wieder aus: Zurückgehaltenes gesammelt schicken (nur aus den letzten 24 Std., nicht in der Ruhezeit)
+  if (!hold && !quiet) await safe(async () => {
+    const since = new Date(nowMs - 86400000).toISOString();
+    const rows = (await env.DB.prepare("SELECT id, title FROM autonomy_log WHERE pushed = -1 AND at >= ? ORDER BY at").bind(since).all()).results || [];
+    await env.DB.prepare("UPDATE autonomy_log SET pushed = 0 WHERE pushed = -1 AND at < ?").bind(since).run();
+    if (!rows.length) return;
+    const res = await notifyAll(env, { title: "JARVIS · Während du nicht gestört werden wolltest", body: rows.length + (rows.length === 1 ? " Hinweis: " : " Hinweise: ") + rows.map(r => r.title).join(" · ").slice(0, 160), url: "./?open=autonomy", tag: "jarvis-auto-held" }, { urgency: "normal" }).catch(() => ({ sent: 0 }));
+    for (const r of rows) await env.DB.prepare("UPDATE autonomy_log SET pushed = ? WHERE id = ?").bind(res.sent ? 1 : 0, r.id).run();
+    report.released = rows.length;
+  });
 
   // 1) Termin beginnt bald (nur mit verbundenem Kalender)
   if (cfg.eventSoon.enabled && !quiet) await safe(async () => {
@@ -82,7 +107,7 @@ export async function runAutonomy(env, { nowMs = Date.now(), timezone = DEFAULT_
       if (e.allDay) continue;
       const until = (Date.parse(e.start) - nowMs) / 60000;
       if (until > 0 && until <= cfg.eventSoon.minutes) {
-        const id = await record(env, { kind: "event_soon", ref: (e.uid || e.title) + "@" + e.start, title: "Gleich: " + e.title, detail: "Beginnt um " + fmtTime(e.start, tz) + (e.location ? " · " + e.location : ""), nowMs,
+        const id = await record(env, { kind: "event_soon", ref: (e.uid || e.title) + "@" + e.start, title: "Gleich: " + e.title, detail: "Beginnt um " + fmtTime(e.start, tz) + (e.location ? " · " + e.location : ""), nowMs, hold,
           push: { title: "JARVIS · In " + Math.round(until) + " Minuten", body: e.title + " um " + fmtTime(e.start, tz) + (e.location ? " · " + e.location : ""), urgent: true } });
         if (id) report.eventSoon++;
       }
@@ -92,7 +117,7 @@ export async function runAutonomy(env, { nowMs = Date.now(), timezone = DEFAULT_
   if (cfg.overdue.enabled && !quiet && l.minutes >= toMin(cfg.overdue.time) && l.minutes < toMin(cfg.overdue.time) + 180) await safe(async () => {
     const rows = (await env.DB.prepare("SELECT title FROM tasks WHERE status = 'open' AND due_at IS NOT NULL AND due_at < ? ORDER BY due_at LIMIT 10").bind(new Date(nowMs).toISOString()).all()).results || [];
     if (!rows.length) return;
-    const id = await record(env, { kind: "overdue", ref: l.day, title: rows.length + (rows.length === 1 ? " Aufgabe ist überfällig" : " Aufgaben sind überfällig"), detail: rows.map(r => r.title).join(" · "), nowMs,
+    const id = await record(env, { kind: "overdue", ref: l.day, title: rows.length + (rows.length === 1 ? " Aufgabe ist überfällig" : " Aufgaben sind überfällig"), detail: rows.map(r => r.title).join(" · "), nowMs, hold,
       push: { title: "JARVIS · Noch offen", body: rows.slice(0, 3).map(r => r.title).join(", ") + (rows.length > 3 ? " …" : "") } });
     if (id) report.overdue++;
   });
@@ -101,7 +126,7 @@ export async function runAutonomy(env, { nowMs = Date.now(), timezone = DEFAULT_
     const before = new Date(nowMs - cfg.mailWatch.hours * 3600000).toISOString();
     const rows = (await env.DB.prepare("SELECT id, from_name, from_addr, subject FROM mail_messages WHERE status IN ('new','read') AND importance >= 5 AND needs_reply = 1 AND suspicious = 0 AND received_at < ? ORDER BY received_at DESC LIMIT 3").bind(before).all()).results || [];
     for (const m of rows) {
-      const id = await record(env, { kind: "mail_watch", ref: m.id, title: "Noch unbeantwortet: " + m.subject, detail: "Von " + (m.from_name || m.from_addr) + ". Antwortentwurf liegt im Bereich Mails bereit.", nowMs,
+      const id = await record(env, { kind: "mail_watch", ref: m.id, title: "Noch unbeantwortet: " + m.subject, detail: "Von " + (m.from_name || m.from_addr) + ". Antwortentwurf liegt im Bereich Mails bereit.", nowMs, hold,
         push: { title: "JARVIS · Wichtige Mail wartet", body: (m.from_name || m.from_addr) + ": " + m.subject } });
       if (id) report.mailWatch++;
     }
@@ -118,7 +143,7 @@ export async function runAutonomy(env, { nowMs = Date.now(), timezone = DEFAULT_
     const due = ((await env.DB.prepare("SELECT title, due_at FROM tasks WHERE status = 'open' AND due_at IS NOT NULL ORDER BY due_at LIMIT 30").all()).results || []).filter(t => local(Date.parse(t.due_at), tz).day === tomorrow);
     if (due.length) parts.push("Fällig: " + due.map(t => t.title).join(", "));
     if (!parts.length) return;
-    const id = await record(env, { kind: "evening_preview", ref: l.day, title: "Morgen", detail: parts.join(" · "), nowMs, push: { title: "JARVIS · Morgen steht an", body: parts.join(" · ").slice(0, 180) } });
+    const id = await record(env, { kind: "evening_preview", ref: l.day, title: "Morgen", detail: parts.join(" · "), nowMs, hold, push: { title: "JARVIS · Morgen steht an", body: parts.join(" · ").slice(0, 180) } });
     if (id) report.eveningPreview++;
   });
   // 5) KI-Tagesvorbereitung am Morgen
@@ -134,9 +159,10 @@ export async function runAutonomy(env, { nowMs = Date.now(), timezone = DEFAULT_
     const result = await prepareDay(env, tz);
     if (!result?.reply) { await env.DB.prepare("UPDATE autonomy_log SET title = 'Tagesvorbereitung fehlgeschlagen', detail = ? WHERE id = ?").bind(clip(result?.error || "unbekannt", 200), id).run(); return; }
     await env.DB.prepare("UPDATE autonomy_log SET title = 'Dein Tag ist vorbereitet', detail = ?, proposals = ? WHERE id = ?").bind(clip(result.reply, 4000), JSON.stringify(result.proposals || []).slice(0, 20000), id).run();
+    report.dayPrep = { id, proposals: (result.proposals || []).length };
+    if (hold) { await env.DB.prepare("UPDATE autonomy_log SET pushed = -1 WHERE id = ?").bind(id).run(); return; }
     const res = await notifyAll(env, { title: "Guten Morgen. Dein Tag ist vorbereitet.", body: clip(result.reply, 170) + ((result.proposals || []).length ? " · " + result.proposals.length + " Vorschlag/Vorschläge" : ""), url: "./?autonomy=" + id, tag: "jarvis-auto-day" }, { urgency: "high", ttl: 3 * 3600 }).catch(() => ({ sent: 0 }));
     if (res.sent) await env.DB.prepare("UPDATE autonomy_log SET pushed = 1 WHERE id = ?").bind(id).run();
-    report.dayPrep = { id, proposals: (result.proposals || []).length };
   });
   // Protokoll kurz halten
   await env.DB.prepare("DELETE FROM autonomy_log WHERE at < ?").bind(new Date(nowMs - 30 * 86400000).toISOString()).run().catch(() => null);

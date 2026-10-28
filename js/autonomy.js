@@ -10,7 +10,8 @@
     ['eventSoon', 'Termin beginnt bald', 'Push kurz vor einem Kalendertermin (Kalender muss verbunden sein).', 'minutes'],
     ['mailWatch', 'Wichtige Mail wartet', 'Push, wenn eine sofort wichtige Mail seit einigen Stunden unbeantwortet ist.', 'hours'],
     ['overdue', 'Überfällige Aufgaben', 'Einmal am Tag eine Erinnerung an Überfälliges.', 'time'],
-    ['eveningPreview', 'Vorschau auf morgen', 'Abends: Termine und Fälliges von morgen.', 'time']
+    ['eveningPreview', 'Vorschau auf morgen', 'Abends: Termine und Fälliges von morgen.', 'time'],
+    ['focusHold', 'Bei „Nicht stören“ leise sein', 'Solange dein iPhone „Nicht stören an“ meldet (Kurzbefehl unter System → Kontext), hält JARVIS Hinweise zurück und schickt sie danach gesammelt. Termine kurz vorher kommen trotzdem.', '']
   ];
   const section = document.createElement('section');
   section.id = 'view-autonomy';
@@ -20,7 +21,7 @@
     + '<div id="autoFeed" class="auto-feed"></div>'
     + '<details class="panel auto-settings" id="autoSettings"><summary>Einstellungen</summary><div id="autoJobs"></div>'
     + '<div class="auto-quiet"><label class="hint">Ruhezeit von<input type="time" id="autoQuietFrom"></label><label class="hint">bis<input type="time" id="autoQuietTo"></label></div>'
-    + '<p class="hint">In der Ruhezeit kommen keine Hinweise (außer der vorbereitete Tag am Morgen). Push-Nachrichten müssen unter JARVIS → Automatisierungen auf diesem Gerät eingeschaltet sein.</p>'
+    + '<p class="hint">In der Ruhezeit kommen keine Hinweise (außer der vorbereitete Tag am Morgen). Zurückgehaltene Hinweise kommen gesammelt, sobald „Nicht stören“ wieder aus ist. Push-Nachrichten müssen unter JARVIS → Automatisierungen auf diesem Gerät eingeschaltet sein.</p>'
     + '<button type="button" class="primary full" id="autoSave">Speichern</button><p class="hint" id="autoState"></p></details>';
   document.querySelector('main')?.append(section);
 
@@ -69,7 +70,7 @@
       if (field === 'time') f.innerHTML = '<input type="time" data-k="time">';
       if (field === 'minutes') f.innerHTML = '<select data-k="minutes"><option value="15">15 min vorher</option><option value="30">30 min vorher</option><option value="60">60 min vorher</option></select>';
       if (field === 'hours') f.innerHTML = '<select data-k="hours"><option value="1">nach 1 Std.</option><option value="3">nach 3 Std.</option><option value="6">nach 6 Std.</option></select>';
-      const input = f.querySelector('[data-k]'); input.dataset.job = key; input.value = String(job[field]);
+      const input = f.querySelector('[data-k]'); if (input) { input.dataset.job = key; input.value = String(job[field]); }
       return row;
     }));
     el('autoQuietFrom').value = settings.quiet.from; el('autoQuietTo').value = settings.quiet.to;
