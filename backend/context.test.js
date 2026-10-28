@@ -46,3 +46,11 @@ test("a wrong shortcut key gets a readable 401 after the body was read", async (
   assert.equal(res.status, 401);
   assert.equal(req.bodyUsed, true, "iOS shows 'connection lost' if the body is left unread");
 });
+
+test("field names typed with a trailing space or capital letter still work", async () => {
+  const env = makeEnv();
+  const k = (await call(env, "/api/context/key", { method: "POST" })).body.key;
+  const r = await call(env, "/api/context", { method: "POST", body: { "Type ": "focus", " value": "Nicht stören an " }, token: k, noOrigin: true });
+  assert.deepEqual(r.body.saved, ["focus"]);
+  assert.equal((await call(env, "/api/context")).body.items[0].value, "Nicht stören an");
+});
