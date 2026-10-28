@@ -62,14 +62,17 @@ export async function handleContextApi(request, env, headers, url) {
         actor = actorOf(auth.principal);
       }
       if (body.error) return json({ error: body.error }, body.status, headers);
-      const list = Array.isArray(body.value.items) ? body.value.items : [{ type: body.value.type, value: body.value.value }];
-      const device = clip(String(body.value.device || ""), 40);
+      // Kurzbefehle hängen beim Tippen gern ein Leerzeichen an oder schreiben groß („Type “) – Feldnamen tolerant lesen.
+      const loose = (o) => Object.fromEntries(Object.entries(o && typeof o === "object" ? o : {}).map(([k, v]) => [k.trim().toLowerCase(), typeof v === "string" ? v.trim() : v]));
+      const top = loose(body.value);
+      const list = Array.isArray(top.items) ? top.items.map(loose) : [{ type: top.type, value: top.value }];
+      const device = clip(String(top.device || ""), 40);
       const now = new Date().toISOString();
       const saved = [];
       for (const item of list.slice(0, 8)) {
         const type = String(item?.type || "").toLowerCase();
         const c = cleanValue(type, item?.value);
-        if (c.error) return json({ error: c.error, type }, 400, headers);
+        if (c.error) return json({ error: c.error, type, ...(type ? {} : { receivedFields: Object.keys(top).slice(0, 10), expected: ["type", "value"] }) }, 400, headers);
         await env.DB.prepare("INSERT INTO context_state (type, value, device, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(type) DO UPDATE SET value = excluded.value, device = excluded.device, updated_at = excluded.updated_at").bind(type, JSON.stringify(c.value), device, now).run();
         saved.push(type);
       }
