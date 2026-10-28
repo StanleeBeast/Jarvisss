@@ -115,6 +115,61 @@
     if (my === seq) { setSpeaking(false); afterSpeech(); }
   }
 
+  // --- Sprechen während die Antwort noch kommt (Live-Antwort aus js/stream.js) -------------------------------
+  // Fertige Sätze werden sofort vertont; die Endantwort ruft danach speak(text) auf und wird hier wiedererkannt.
+  let live = null;
+  const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+  function streamStart() {
+    live = null;
+    if (!backendReady() || profile().voiceEngine === 'system') return;
+    stop();
+    const s = { my: seq, buf: '', heard: '', parts: [], ended: false, wake: null, expected: null };
+    s.done = pumpLive(s);
+    live = s;
+  }
+  function cut(s, final) {
+    // Ab einem Satzende (erster Abschnitt schon ab 40 Zeichen) einen Abschnitt abtrennen.
+    for (;;) {
+      const min = s.parts.length ? 160 : 40;
+      const m = s.buf.length >= min && s.buf.slice(min - 1).match(/[.!?…:](["“”»)]?)\s/);
+      if (!m) break;
+      const end = min - 1 + m.index + m[0].length;
+      s.parts.push(s.buf.slice(0, end).trim()); s.buf = s.buf.slice(end);
+    }
+    if (final && s.buf.trim()) { s.parts.push(s.buf.trim()); s.buf = ''; }
+    s.wake?.(); s.wake = null;
+  }
+  function streamPush(text) { const s = live; if (!s || s.my !== seq) return; s.buf += text; s.heard += text; currentSpeech = s.heard; cut(s, false); }
+  function streamReset() { const s = live; if (!s) return; s.buf = ''; s.heard = ''; } // schon Gesprochenes bleibt, der Rest fängt neu an
+  function streamEnd(finalText) { const s = live; if (!s) return; s.expected = norm(finalText); s.ended = true; cut(s, true); }
+  function streamCancel() { const s = live; if (!s) return; live = null; if (!s.parts.length) return; s.ended = true; cut(s, true); }
+  async function pumpLive(s) {
+    const my = s.my, fetched = [];
+    let i = 0;
+    try {
+      const token = await authToken();
+      for (;;) {
+        if (my !== seq) return;
+        if (i >= s.parts.length) { if (s.ended) break; await new Promise(r => { s.wake = r; }); continue; }
+        if (i === 0) setSpeaking(true);
+        fetched[i] ||= fetchAudio(s.parts[i], token, my);
+        if (i + 1 < s.parts.length) { fetched[i + 1] ||= fetchAudio(s.parts[i + 1], token, my); fetched[i + 1].catch(() => null); }
+        const url = await fetched[i];
+        if (my !== seq || !url) return;
+        await play(url, my);
+        i++;
+      }
+    } catch (e) {
+      if (my !== seq) return;
+      console.warn('KI-Stimme nicht verfügbar, verwende Systemstimme.', e);
+      setSpeaking(false);
+      const rest = s.parts.slice(i).join(' ') + ' ' + s.buf;
+      if (rest.trim()) legacySpeakLocal?.(rest.trim());
+      return;
+    }
+    if (my === seq && i > 0) { setSpeaking(false); afterSpeech(); }
+  }
+
   // --- Zuhören -----------------------------------------------------------------------------------------
   const ERR = {
     NotAllowedError: 'Mikrofonzugriff verweigert. Erlaube ihn in den iPad-Einstellungen → Datenschutz → Mikrofon bzw. für diese Website und versuche es erneut.',
@@ -341,7 +396,14 @@
   }
   let currentSpeech = '', note = null;
   const plainSpeak = speak;
-  async function speakTracked(text) { currentSpeech = String(text || ''); try { await plainSpeak(text); } finally { if (!body.classList.contains('jarvis-speaking')) currentSpeech = ''; } }
+  async function speakTracked(text) {
+    currentSpeech = String(text || '');
+    // Diese Antwort wird schon live gesprochen → nicht von vorn beginnen, sondern zu Ende sprechen lassen.
+    const s = live;
+    if (s && s.my === seq && s.ended && s.expected === norm(text)) { live = null; try { await s.done; } finally { if (!body.classList.contains('jarvis-speaking')) currentSpeech = ''; } return; }
+    live = null;
+    try { await plainSpeak(text); } finally { if (!body.classList.contains('jarvis-speaking')) currentSpeech = ''; }
+  }
   // Ohne Startknopf der Animation (oder nach dem Zurückkehren in die App): ein Tipp startet das offene Mikrofon.
   const pill = document.createElement('button');
   pill.type = 'button'; pill.id = 'hfPill'; pill.className = 'hf-pill'; pill.hidden = true;
@@ -362,5 +424,5 @@
   window.listen = (opts) => hf.on ? handsFreeStop() : profile().handsFree !== false && backendReady() && supported() ? handsFreeStart() : listen(opts);
   window.stopListening = () => rec?.cancel();
   ['listenBtn', 'chatListen'].forEach(id => { const b = $(id); if (b) b.onclick = () => listen(); });
-  window.JarvisSpeech = { capturing: () => Boolean(hf.rec), takeNote: () => { const n = note; note = null; return n; }, voiceMode: () => hf.on, speak: speakTracked, stop, listen, chunks, handsFreeStart, handsFreeStop, handsFree: () => hf.on };
+  window.JarvisSpeech = { capturing: () => Boolean(hf.rec), takeNote: () => { const n = note; note = null; return n; }, voiceMode: () => hf.on, speak: speakTracked, stop, listen, chunks, streamStart, streamPush, streamReset, streamEnd, streamCancel, handsFreeStart, handsFreeStop, handsFree: () => hf.on };
 })();
