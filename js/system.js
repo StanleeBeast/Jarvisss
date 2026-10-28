@@ -32,6 +32,7 @@
     memory_storage_unavailable: 'Der Gedächtnisspeicher antwortet gerade nicht.',
     daily_limit_reached: 'Das tägliche Limit ist erreicht (setzt sich um Mitternacht zurück).',
     model_timeout: 'Das KI-Modell hat zu lange gebraucht.',
+    stream_interrupted: 'Die Verbindung ist während der Antwort abgebrochen.',
     model_unreachable: 'Der KI-Anbieter ist nicht erreichbar.',
     model_quota_exhausted: 'Das OpenAI-Guthaben ist aufgebraucht oder es ist keine Zahlungsmethode hinterlegt (platform.openai.com → Settings → Billing).',
     model_key_invalid: 'Der OpenAI-Schlüssel wird abgelehnt (GitHub-Secret OPENAI_API_KEY prüfen).',

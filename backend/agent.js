@@ -572,6 +572,50 @@ async function remindersReady(env) {
   } catch { return false; }
 }
 
+// Was JARVIS gerade tut – live in der App angezeigt, während er arbeitet.
+const TOOL_LABELS = { web_search: "Suche im Internet", get_weather: "Prüfe das Wetter", get_news: "Lese Nachrichten", get_briefing: "Stelle dein Briefing zusammen", list_tasks: "Schaue in deine Aufgaben", get_day_plan: "Prüfe deinen Tagesplan", get_calendar_events: "Schaue in deinen Kalender", list_mails: "Lese deine Mails", remember: "Merke mir das" };
+function toolLabel(name, rawArgs) {
+  if (name.startsWith("propose_") || name === "draft_task") return "Bereite einen Vorschlag vor";
+  let label = TOOL_LABELS[name] || "Arbeite";
+  if (name === "web_search") { try { const q = JSON.parse(rawArgs || "{}").query; if (q) label += ": " + clip(String(q), 90); } catch { /* ohne Suchbegriff */ } }
+  return label;
+}
+
+// Liest eine gestreamte Chat-Completions-Antwort (SSE). Text wird sofort weitergereicht, Werkzeugaufrufe gesammelt.
+async function readStream(res, onDelta) {
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  const message = { role: "assistant", content: "" }, calls = [];
+  let buf = "", usage = null, model = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (data === "[DONE]") continue;
+      let chunk; try { chunk = JSON.parse(data); } catch { continue; }
+      if (chunk.usage) usage = chunk.usage;
+      if (chunk.model) model = chunk.model;
+      const d = chunk.choices?.[0]?.delta;
+      if (!d) continue;
+      if (typeof d.content === "string" && d.content) { message.content += d.content; onDelta(d.content); }
+      for (const t of d.tool_calls || []) {
+        const c = calls[t.index ?? 0] ||= { id: "", type: "function", function: { name: "", arguments: "" } };
+        if (t.id) c.id = t.id;
+        if (t.function?.name) c.function.name += t.function.name;
+        if (t.function?.arguments) c.function.arguments += t.function.arguments;
+      }
+    }
+  }
+  const toolCalls = calls.filter(Boolean);
+  if (toolCalls.length) message.tool_calls = toolCalls;
+  if (!message.content) message.content = toolCalls.length ? null : "";
+  return { choices: [{ message }], usage, model };
+}
+
 export async function runAgent(payload, env, opts = {}) {
   // Monatsgrenze: ab 80 % günstigeres Modell und keine Websuche, damit das Budget bis Monatsende reicht.
   const budget = await budgetState(env);
@@ -599,11 +643,14 @@ export async function runAgent(payload, env, opts = {}) {
     await addUsage(env, { chatRequests: 1, ...usage, model });
     return { ...result, toolLog, usage };
   };
+  // opts.onEvent: gestreamte Antwort (Text erscheint Wort für Wort, Werkzeuge werden live angezeigt)
+  const emit = typeof opts.onEvent === "function" ? opts.onEvent : null;
+  let streamed = false;
   for (let round = 0; round < (opts.maxRounds || MAX_AGENT_ROUNDS); round++) {
     const call = (m) => fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Authorization": "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: m, messages, tools: toolDefinitions(tools), tool_choice: "auto", parallel_tool_calls: true, ...modelParams(m) }),
+      body: JSON.stringify({ model: m, messages, tools: toolDefinitions(tools), tool_choice: "auto", parallel_tool_calls: true, ...modelParams(m), ...(emit ? { stream: true, stream_options: { include_usage: true } } : {}) }),
       signal: AbortSignal.timeout(isReasoning(m) ? 60000 : 40000)
     });
     let upstream;
@@ -614,7 +661,7 @@ export async function runAgent(payload, env, opts = {}) {
       upstream = await call(model);
     }
     if (!upstream.ok) return finish({ error: await modelError(upstream), status: 502 });
-    const result = await upstream.json();
+    const result = emit ? await readStream(upstream, (text) => { streamed = true; emit({ type: "delta", text }); }) : await upstream.json();
     usage.promptTokens += Number(result?.usage?.prompt_tokens) || 0;
     usage.completionTokens += Number(result?.usage?.completion_tokens) || 0;
     const message = result?.choices?.[0]?.message;
@@ -624,13 +671,17 @@ export async function runAgent(payload, env, opts = {}) {
       const reply = typeof message.content === "string" ? message.content.trim() : "";
       return finish(reply ? { reply, model: result.model || model, agent: true, proposals: ctx.proposals, memoriesChanged: Boolean(ctx.memoriesChanged), budget: { level: budget.level, spentUsd: budget.spentUsd, limitUsd: budget.limitUsd } } : { error: "empty_model_response", status: 502 });
     }
+    // Text vor Werkzeugaufrufen („Ich schaue nach …“) ist nicht die Antwort: Anzeige neu beginnen.
+    if (emit && streamed) { emit({ type: "reset" }); streamed = false; }
     // Jede tool_call_id braucht eine Antwort, sonst lehnt die API die nächste Runde ab.
     for (const [index, call] of message.tool_calls.entries()) {
       const name = call?.function?.name || "unknown";
+      if (emit && index < MAX_TOOL_CALLS_PER_ROUND) emit({ type: "tool", tool: name, label: toolLabel(name, call?.function?.arguments) });
       const output = index < MAX_TOOL_CALLS_PER_ROUND
         ? await executeTool(name, call?.function?.arguments, ctx)
         : { error: "tool_call_limit" };
       toolLog.push({ tool: name, ok: !output.error });
+      if (emit && Array.isArray(output?.sources) && output.sources.length) emit({ type: "sources", tool: name, sources: output.sources });
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(output) });
     }
   }
@@ -649,6 +700,7 @@ export async function handleChat(request, env, headers) {
   if (!safeMessages(payload.messages).length) return json({ error: "messages_required" }, 400, headers);
   const budget = await checkBudget(env, "chat");
   if (!budget.ok) return json({ error: budget.error, usage: budget.usage, limits: budget.limits, message: "Das tägliche KI-Limit ist erreicht. Es wird um Mitternacht zurückgesetzt oder kann über DAILY_MAX_* im Worker angepasst werden." }, 429, headers);
+  if (payload.stream === true) return streamChat(payload, env, headers);
   try {
     const result = await runAgent(payload, env);
     if (result.error) return json(result, result.status || 502, headers);
@@ -656,6 +708,27 @@ export async function handleChat(request, env, headers) {
   } catch (error) {
     return json({ error: isTimeout(error) ? "model_timeout" : "model_unreachable" }, 502, headers);
   }
+}
+
+// Server-Sent Events: delta (Text), tool (was JARVIS gerade tut), sources, reset, dann done oder error.
+function streamChat(payload, env, headers) {
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter(), enc = new TextEncoder();
+  const send = (event) => writer.write(enc.encode("data: " + JSON.stringify(event) + "\n\n")).catch(() => {});
+  // Lange Suchen: alle 15 s ein Lebenszeichen, damit keine Verbindung unterwegs abbricht.
+  const ping = setInterval(() => writer.write(enc.encode(": ping\n\n")).catch(() => {}), 15000);
+  (async () => {
+    try {
+      const result = await runAgent(payload, env, { onEvent: send });
+      await send(result.error ? { type: "error", ...result } : { type: "done", ...result });
+    } catch (error) {
+      await send({ type: "error", error: error?.name === "TimeoutError" || error?.name === "AbortError" ? "model_timeout" : "model_unreachable" });
+    } finally {
+      clearInterval(ping);
+      await writer.close().catch(() => {});
+    }
+  })();
+  return new Response(readable, { status: 200, headers: { ...headers, "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no", "X-Jarvis-Stream": "1" } });
 }
 
 export async function handleToolsApi(request, env, headers, url) {

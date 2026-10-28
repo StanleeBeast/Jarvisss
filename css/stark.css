@@ -368,3 +368,10 @@ body.n1-settings-open .hf-pill{display:none!important}
 .install-pill{position:fixed;right:18px;bottom:18px;z-index:55;padding:10px 16px!important;border:1px solid var(--line-hi)!important;background:rgba(14,12,10,.94)!important;color:var(--gold-hi)!important;font-family:var(--hud-font);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:12px;clip-path:none!important;border-radius:999px!important}
 .install-pill[hidden]{display:none!important}
 @media (min-width:1500px){#nexusOne .n1-main,#nexusOne main{max-width:1440px;margin-left:auto;margin-right:auto}}
+
+/* Live-Antwort: gefundene Quellen als Karten unter der Antwort */
+.n1-sources{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.n1-sources[hidden]{display:none}
+.n1-sources a{display:flex;flex-direction:column;gap:2px;max-width:min(260px,100%);padding:8px 10px;border:1px solid rgba(232,190,110,.35);background:rgba(10,14,20,.55);color:inherit;text-decoration:none;font-size:12px;line-height:1.3;border-radius:6px}
+.n1-sources a b{font-family:var(--hud-font);letter-spacing:.08em;color:var(--gold);font-size:11px;text-transform:uppercase}
+.n1-sources a span{opacity:.85;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
