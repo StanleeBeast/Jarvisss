@@ -5,6 +5,8 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   let live = null; // { text, label, sources }
+  // Einstufung aus der Recherche: Faustregel, kein Urteil – deshalb vorsichtig formuliert.
+  const TRUST = { green: ['●', 'Seriöse Quelle'], yellow: ['●', 'Unklare Quelle – mit anderen abgleichen'], red: ['▲', 'Warnzeichen'] };
 
   function show() {
     if (!live) return;
@@ -25,7 +27,10 @@
       const a = document.createElement('a');
       a.href = s.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
       let site = ''; try { site = new URL(s.url).hostname.replace(/^www\./, ''); } catch { /* ungültig */ }
-      a.append(Object.assign(document.createElement('b'), { textContent: site }), Object.assign(document.createElement('span'), { textContent: s.title || s.url }));
+      const t = TRUST[s.trust];
+      if (t) { a.dataset.trust = s.trust; a.title = t[1] + (Array.isArray(s.reasons) && s.reasons.length ? ': ' + s.reasons.join(', ') : ''); }
+      a.append(Object.assign(document.createElement('b'), { textContent: (t ? t[0] + ' ' : '') + site }), Object.assign(document.createElement('span'), { textContent: s.title || s.url }));
+      if (s.trust === 'red' && s.reasons?.length) a.append(Object.assign(document.createElement('small'), { textContent: '⚠ ' + s.reasons.join(', ') }));
       return a;
     }));
   }
