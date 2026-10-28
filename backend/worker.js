@@ -13,6 +13,7 @@ import { handleTasksApi } from "./tasks.js";
 import { getNews } from "./news.js";
 import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL, runAgent } from "./agent.js";
 import { handleAutonomyApi, runAutonomy } from "./autonomy.js";
+import { handleWebsitesApi } from "./websites.js";
 import { handleContextApi } from "./context.js";
 import { handleImprovementsApi, improvementStatus } from "./improve.js";
 import { handleAlexaApi } from "./alexa.js";
@@ -314,6 +315,8 @@ export default {
     if (contextResponse) return contextResponse;
     const autonomyResponse = await handleAutonomyApi(request, env, headers, url);
     if (autonomyResponse) return autonomyResponse;
+    const websitesResponse = await handleWebsitesApi(request, env, headers, url);
+    if (websitesResponse) return websitesResponse;
     if (request.method === "GET" && url.pathname === "/api/news") {
       const auth = await authenticate(request, env, headers);
       if (auth.response) return auth.response;

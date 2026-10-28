@@ -1,0 +1,51 @@
+name: Website veröffentlichen
+run-name: Website ${{ inputs.slug }} veröffentlichen
+
+# Startet nur auf ausdrückliche Bestätigung im JARVIS Website-Studio (der Worker ruft diesen Workflow auf).
+# Die Dateien liegen im Branch jarvis-sites unter sites/<slug>/ und gehen als eigenes Cloudflare-Pages-Projekt online.
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: Ordner unter sites/
+        required: true
+        type: string
+      project:
+        description: Name des Cloudflare-Pages-Projekts
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency: publish-site-${{ inputs.slug }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Eingaben prüfen
+        env:
+          SLUG: ${{ inputs.slug }}
+          PROJECT: ${{ inputs.project }}
+        run: |
+          [[ "$SLUG" =~ ^[a-z0-9-]{1,45}$ ]] || { echo "Ungültiger Ordnername"; exit 1; }
+          [[ "$PROJECT" =~ ^jarvis-[a-z0-9-]{1,51}$ ]] || { echo "Ungültiger Projektname"; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          ref: jarvis-sites
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Auf Cloudflare Pages veröffentlichen
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SLUG: ${{ inputs.slug }}
+          PROJECT: ${{ inputs.project }}
+        run: |
+          test -f "sites/$SLUG/index.html" || { echo "Keine Dateien unter sites/$SLUG"; exit 1; }
+          npx --yes wrangler pages project create "$PROJECT" --production-branch main || echo "Projekt existiert vermutlich schon."
+          npx --yes wrangler pages deploy "sites/$SLUG" --project-name "$PROJECT" --branch main --commit-dirty=true
+          echo "Online: https://$PROJECT.pages.dev"

@@ -7,7 +7,7 @@ import { json, clip, readJsonBody, audit } from "./http.js";
 import { authenticate, actorOf } from "./auth.js";
 
 export const LABEL = "jarvis-wunsch";
-export const PROTECTED = [/^\.github\//, /^backend\/(auth|http|usage|improve)\.js$/, /^backend\/migrations\/00(0\d|1[0-2])_/, /^backend\/wrangler\.toml$/, /^homestation\/src\/(secret|backend)\.js$/, /^backend\/test-support\//];
+export const PROTECTED = [/^\.github\//, /^backend\/(auth|http|usage|improve)\.js$/, /^backend\/migrations\/00(0\d|1[0-3])_/, /^backend\/wrangler\.toml$/, /^homestation\/src\/(secret|backend)\.js$/, /^backend\/test-support\//];
 const isProtected = (file) => PROTECTED.some(r => r.test(file));
 const repo = (env) => (env.GITHUB_REPO || "StanleeBeast/Jarvisss").replace(/[^A-Za-z0-9_.\/-]/g, "");
 const REQUIRED_CHECKS = ["protected-files", "test-worker"];

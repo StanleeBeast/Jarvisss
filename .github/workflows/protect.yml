@@ -21,6 +21,6 @@ jobs:
         run: |
           changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           echo "$changed"
-          if echo "$changed" | grep -E '^\.github/|^backend/(auth|http|usage|improve)\.js$|^backend/migrations/00(0[0-9]|1[0-2])_|^backend/wrangler\.toml$|^homestation/src/(secret|backend)\.js$|^backend/test-support/'; then
+          if echo "$changed" | grep -E '^\.github/|^backend/(auth|http|usage|improve)\.js$|^backend/migrations/00(0[0-9]|1[0-3])_|^backend/wrangler\.toml$|^homestation/src/(secret|backend)\.js$|^backend/test-support/'; then
             echo "Geschützte Datei geändert – diese Selbstverbesserung wird nicht übernommen."; exit 1
           fi
