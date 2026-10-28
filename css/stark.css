@@ -375,3 +375,9 @@ body.n1-settings-open .hf-pill{display:none!important}
 .n1-sources a{display:flex;flex-direction:column;gap:2px;max-width:min(260px,100%);padding:8px 10px;border:1px solid rgba(232,190,110,.35);background:rgba(10,14,20,.55);color:inherit;text-decoration:none;font-size:12px;line-height:1.3;border-radius:6px}
 .n1-sources a b{font-family:var(--hud-font);letter-spacing:.08em;color:var(--gold);font-size:11px;text-transform:uppercase}
 .n1-sources a span{opacity:.85;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.n1-sources a[data-trust="green"]{border-color:rgba(90,200,140,.6)}
+.n1-sources a[data-trust="green"] b{color:#6fd6a0}
+.n1-sources a[data-trust="yellow"] b{color:var(--gold)}
+.n1-sources a[data-trust="red"]{border-color:rgba(240,90,80,.7);background:rgba(60,10,10,.45)}
+.n1-sources a[data-trust="red"] b,.n1-sources a small{color:#ff8a80}
+.n1-sources a small{font-size:11px;line-height:1.25}
