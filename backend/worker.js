@@ -14,6 +14,7 @@ import { getNews } from "./news.js";
 import { handleChat, handleToolsApi, availableTools, DEFAULT_MODEL, runAgent } from "./agent.js";
 import { handleAutonomyApi, runAutonomy } from "./autonomy.js";
 import { handleWebsitesApi } from "./websites.js";
+import { browserConfigured } from "./browser.js";
 import { handleContextApi } from "./context.js";
 import { handleImprovementsApi, improvementStatus } from "./improve.js";
 import { handleAlexaApi } from "./alexa.js";
@@ -132,6 +133,9 @@ async function systemStatus(env, principal) {
         : { state: "not_available", detail: "Profil, Gedächtnis und Design liegen nur lokal im Browser." },
       mail: await stationStatus(env),
       improvements: improvementStatus(env),
+      browser: browserConfigured(env)
+        ? { state: "configured", detail: "Websites zeigen eingerichtet (Cloudflare Browser Rendering, kostenlos bis 10 Minuten pro Tag). Ob der Schlüssel stimmt, zeigt der erste Aufruf.", verified: false }
+        : { state: "not_configured", detail: "Websites zeigen aus: GitHub-Secret JARVIS_BROWSER_TOKEN fehlt." },
       messaging: { state: "manual_only", detail: "Kein Zugriff auf WhatsApp. Ausgewählte Chats importierst du selbst (Chat exportieren oder einfügen); Antworten sind Entwürfe, die du selbst sendest. E-Mail: siehe Home-Station." }
     }
   };
