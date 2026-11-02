@@ -35,10 +35,29 @@
     }));
   }
 
+  // Screenshot einer Website, die JARVIS geöffnet hat (Tippen = groß).
+  function showShot(ev) {
+    const host = $('n1Answer');
+    if (!host) return;
+    const fig = document.createElement('figure');
+    fig.className = 'n1-shot';
+    fig.dataset.device = ev.device === 'desktop' ? 'desktop' : 'phone';
+    const img = Object.assign(document.createElement('img'), { src: ev.src, alt: 'Screenshot von ' + (ev.host || 'der Website'), loading: 'lazy' });
+    img.onclick = () => fig.classList.toggle('is-big');
+    const cap = document.createElement('figcaption');
+    const link = Object.assign(document.createElement('a'), { href: ev.url, target: '_blank', rel: 'noopener noreferrer', textContent: (ev.host || 'Website') + ' öffnen ↗' });
+    cap.append(Object.assign(document.createElement('span'), { textContent: (ev.title ? ev.title + ' · ' : '') + (fig.dataset.device === 'desktop' ? 'Computer' : 'Handy') + ' · tippen zum Vergrößern' }), link);
+    fig.append(img, cap);
+    let box = $('n1Shots');
+    if (!box) { box = document.createElement('div'); box.id = 'n1Shots'; box.className = 'n1-shots'; host.append(box); }
+    box.append(fig);
+  }
+
   // Liest den Stream bis zum Ende. Rückgabe: das done- bzw. error-Ereignis (wie die bisherige JSON-Antwort).
   async function read(res, onActivity) {
     live = { text: '', label: '', sources: [] };
     $('n1Sources')?.replaceChildren();
+    $('n1Shots')?.replaceChildren();
     window.JarvisSpeech?.streamStart?.();
     const reader = res.body.getReader(), dec = new TextDecoder();
     let buf = '', last = null;
@@ -58,6 +77,7 @@
           else if (ev.type === 'reset') { live.text = ''; window.JarvisSpeech?.streamReset?.(); }
           else if (ev.type === 'tool') live.label = ev.label || '';
           else if (ev.type === 'sources') { for (const s of ev.sources || []) if (s?.url && !live.sources.some(x => x.url === s.url)) live.sources.push(s); }
+          else if (ev.type === 'image' && /^data:image\/(jpeg|png|webp);base64,/.test(ev.src || '')) showShot(ev);
           else if (ev.type === 'done' || ev.type === 'error') last = ev;
           show();
         }

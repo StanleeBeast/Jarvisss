@@ -19,7 +19,7 @@
     frontend: 'Frontend', network: 'Internetverbindung', serviceWorker: 'PWA · Offline-Cache', localStore: 'Lokaler Speicher',
     speechInput: 'Spracheingabe', microphone: 'Mikrofon-Berechtigung', systemVoice: 'Systemstimme', backend: 'Backend (Cloudflare Worker)',
     auth: 'Zugang', ai: 'KI-Modell', tts: 'KI-Stimme', news: 'Nachrichtenrecherche', storage: 'Datenbank (D1)', tasks: 'Aufgaben-API',
-    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', costs: 'Kosten & Tageslimit', push: 'Benachrichtigungen', scheduler: 'Zeitplaner', study: 'Lernassistent', planner: 'Tagesplaner', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp)', mail: 'E-Mail & Home-Station'
+    devices: 'Gerätesitzungen', memory: 'Gedächtnis (D1)', tools: 'Agenten-Werkzeuge', costs: 'Kosten & Tageslimit', push: 'Benachrichtigungen', scheduler: 'Zeitplaner', study: 'Lernassistent', planner: 'Tagesplaner', calendar: 'Kalender', automations: 'Automatisierungen', sync: 'Geräte-Synchronisation', messaging: 'Nachrichten (WhatsApp)', mail: 'E-Mail & Home-Station', improvements: 'Selbstverbesserung', browser: 'Websites zeigen'
   };
   const ERROR_TEXT = {
     no_endpoint: 'Kein Backend eingetragen (Einstellungen → Stimme & KI).',
@@ -33,6 +33,11 @@
     daily_limit_reached: 'Das tägliche Limit ist erreicht (setzt sich um Mitternacht zurück).',
     model_timeout: 'Das KI-Modell hat zu lange gebraucht.',
     stream_interrupted: 'Die Verbindung ist während der Antwort abgebrochen.',
+    browser_not_configured: 'Websites zeigen ist nicht eingerichtet (GitHub-Secret JARVIS_BROWSER_TOKEN fehlt).',
+    browser_limit_reached: 'Das kostenlose Tageslimit für Websites (10 Minuten) ist erreicht. Morgen geht es wieder.',
+    browser_token_invalid: 'Der Cloudflare-Schlüssel für Websites ist ungültig oder hat nicht das Recht „Browser Rendering“.',
+    browser_unavailable: 'Die Website konnte nicht geöffnet werden.',
+    invalid_url: 'Das ist keine öffentliche Webadresse.',
     website_brief_too_short: 'Bitte mindestens den Namen und eine kurze Beschreibung angeben.',
     website_limit_reached: 'Es gibt schon 30 Website-Entwürfe. Lösche zuerst alte.',
     website_generation_failed: 'Die KI hat keine gültige Website geliefert. Bitte nochmal versuchen.',
@@ -94,7 +99,7 @@
     not_found: 'Endpunkt nicht gefunden – ist der Worker aktuell deployed?',
     model_request_failed: 'Der KI-Anbieter hat die Anfrage abgelehnt.'
   };
-  const TOOL_LABELS = { get_news: 'Nachrichten', list_tasks: 'Aufgaben gelesen', get_current_time: 'Uhrzeit', draft_task: 'Entwurf erstellt' };
+  const TOOL_LABELS = { get_news: 'Nachrichten', list_tasks: 'Aufgaben gelesen', get_current_time: 'Uhrzeit', draft_task: 'Entwurf erstellt', web_search: 'Internetsuche', deep_research: 'Gründliche Recherche', view_website: 'Website geöffnet', build_website: 'Website gebaut', revise_website: 'Website geändert', get_briefing: 'Briefing', get_weather: 'Wetter', remember: 'Gemerkt', list_mails: 'Mails gelesen', get_day_plan: 'Tagesplan', get_calendar_events: 'Kalender' };
 
   let flashState = null, flashTimer = 0, backend = { state: 'unknown' }, lastStatus = null, checking = null;
 
